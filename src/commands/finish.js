@@ -393,7 +393,7 @@ function generatePRBody(description, branchName) {
  * 完了通知を送信
  */
 async function sendCompletionNotification(pullRequest) {
-  if (!await notificationService.isConfigured()) {
+  if (!await NotificationService.isConfigured()) {
     return;
   }
 

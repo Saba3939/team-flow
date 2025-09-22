@@ -435,7 +435,7 @@ async function executeUpdateIssueAction() {
  */
 async function executeUpdateStatusAction() {
   // チーム通知があれば送信
-  if (await notificationService.isConfigured()) {
+  if (await NotificationService.isConfigured()) {
     const currentBranch = await git.getCurrentBranch();
     const workStatus = new WorkStatus();
     const status = await workStatus.analyze();
