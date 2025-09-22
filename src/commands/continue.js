@@ -331,6 +331,8 @@ async function executePushAction() {
   const hasRemote = await git.hasRemoteBranch(currentBranch);
 
   try {
+    console.log(`[DEBUG] executePushAction開始: ブランチ ${currentBranch}, hasRemote: ${hasRemote}`);
+    
     if (!hasRemote) {
       const shouldSetUpstream = await confirm({
         message: 'リモートブランチが存在しません。新しく作成しますか？',
@@ -338,16 +340,28 @@ async function executePushAction() {
       });
 
       if (shouldSetUpstream) {
+        console.log(`[DEBUG] upstream設定でプッシュします`);
         await git.pushSetUpstream(currentBranch);
       } else {
         throw new Error('リモートブランチが設定されていません');
       }
     } else {
-      await git.push();
+      console.log(`[DEBUG] 通常のプッシュを実行します`);
+      
+      // まず通常のsimple-gitで試行
+      try {
+        await git.push();
+      } catch (simpleGitError) {
+        console.log(`[DEBUG] simple-gitでエラー、直接gitコマンドで再試行: ${simpleGitError.message}`);
+        // simple-gitで失敗した場合は直接gitコマンドで実行
+        await git.pushDirect();
+      }
     }
     
+    console.log(`[DEBUG] executePushAction完了`);
     return { success: true };
   } catch (error) {
+    console.log(`[DEBUG] executePushActionでエラー: ${error.message}`);
     // エラーログは既にGitHelperで出力されているので、ここでは処理結果のみ返す
     return { success: false, error: error.message };
   }
