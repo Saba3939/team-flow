@@ -4,7 +4,13 @@ const config = require('../config');
 
 class GitHelper {
   constructor() {
-    this.git = simpleGit();
+    // タイムアウト設定を追加
+    this.git = simpleGit({
+      timeout: {
+        block: 30000, // 30秒でタイムアウト
+      },
+      maxConcurrentProcesses: 1,
+    });
     this.defaultBranch = config.get('git.defaultBranch') || 'main';
   }
 
@@ -193,20 +199,40 @@ class GitHelper {
   // プッシュ
   async push(branch = null) {
     const ora = require('ora');
+    let spinner;
+    
     try {
       const currentBranch = branch || await this.getCurrentBranch();
       
       // 進捗表示を追加
-      const spinner = ora(`変更をリモートにプッシュ実行中... (${currentBranch})`).start();
+      spinner = ora(`変更をリモートにプッシュ実行中... (${currentBranch})`).start();
       
-      await this.git.push('origin', currentBranch);
+      // プッシュ実行（タイムアウト保護済み）
+      const result = await Promise.race([
+        this.git.push('origin', currentBranch),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('プッシュがタイムアウトしました（30秒）')), 30000)
+        )
+      ]);
       
       spinner.stop();
       logger.success(`プッシュしました: ${currentBranch}`);
       return true;
     } catch (error) {
-      logger.error('プッシュに失敗', error);
-      throw error; // エラーを再throwして上位で処理できるようにする
+      if (spinner) spinner.stop();
+      
+      // より詳細なエラー情報を提供
+      let errorMessage = 'プッシュに失敗';
+      if (error.message.includes('timeout')) {
+        errorMessage = 'プッシュがタイムアウトしました。ネットワーク接続を確認してください';
+      } else if (error.message.includes('Authentication') || error.message.includes('permission')) {
+        errorMessage = '認証に失敗しました。GitHubの認証情報を確認してください';
+      } else if (error.message.includes('rejected')) {
+        errorMessage = 'プッシュが拒否されました。リモートの変更をpullしてから再実行してください';
+      }
+      
+      logger.error(errorMessage, error);
+      throw new Error(errorMessage);
     }
   }
 
@@ -456,18 +482,36 @@ class GitHelper {
   // upstream設定でプッシュ
   async pushSetUpstream(branchName) {
     const ora = require('ora');
+    let spinner;
+    
     try {
       // 進捗表示を追加
-      const spinner = ora(`リモートブランチを作成してプッシュ実行中... (${branchName})`).start();
+      spinner = ora(`リモートブランチを作成してプッシュ実行中... (${branchName})`).start();
       
-      await this.git.push('origin', branchName, ['-u']);
+      // upstream設定でプッシュ実行（タイムアウト保護済み）
+      const result = await Promise.race([
+        this.git.push('origin', branchName, ['-u']),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('プッシュがタイムアウトしました（30秒）')), 30000)
+        )
+      ]);
       
       spinner.stop();
       logger.success(`upstream設定でプッシュしました: ${branchName}`);
       return true;
     } catch (error) {
-      logger.error('upstream設定プッシュに失敗', error);
-      throw error; // 既にthrowされているが明示的に記述
+      if (spinner) spinner.stop();
+      
+      // より詳細なエラー情報を提供
+      let errorMessage = 'upstream設定プッシュに失敗';
+      if (error.message.includes('timeout')) {
+        errorMessage = 'プッシュがタイムアウトしました。ネットワーク接続を確認してください';
+      } else if (error.message.includes('Authentication') || error.message.includes('permission')) {
+        errorMessage = '認証に失敗しました。GitHubの認証情報を確認してください';
+      }
+      
+      logger.error(errorMessage, error);
+      throw new Error(errorMessage);
     }
   }
 
