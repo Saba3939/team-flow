@@ -370,7 +370,7 @@ async function createAndSwitchBranch(branchName) {
  * 通知を送信
  */
 async function sendNotification(workType, branchName, issueInfo) {
-  if (!await notificationService.isConfigured()) {
+  if (!await NotificationService.isConfigured()) {
     return;
   }
 
