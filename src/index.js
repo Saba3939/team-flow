@@ -61,9 +61,9 @@ program
 program
   .command('finish')
   .description('作業を完了')
-  .action(() => {
-    console.log(chalk.yellow('✅ 作業を完了します...'));
-    // TODO: finishコマンドの実装
+  .action(async () => {
+    const finishCommand = require('./commands/finish');
+    await finishCommand();
   });
 
 program
