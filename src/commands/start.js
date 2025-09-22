@@ -308,28 +308,62 @@ async function checkConflicts(branchName, issueInfo) {
 async function createAndSwitchBranch(branchName) {
   const spinner = ora(`ブランチ "${branchName}" を作成中...`).start();
 
-  // ベースブランチの確認
-  const currentBranch = await git.getCurrentBranch();
-  if (currentBranch !== 'main' && currentBranch !== 'master') {
-    spinner.stop();
-    console.log(chalk.yellow(`⚠️  現在のブランチ: ${currentBranch}`));
+  try {
+    // ベースブランチの確認と切り替え
+    const currentBranch = await git.getCurrentBranch();
+    let baseBranch = 'main';
+    
+    // main/masterブランチの存在確認
+    if (await git.hasLocalBranch('main')) {
+      baseBranch = 'main';
+    } else if (await git.hasLocalBranch('master')) {
+      baseBranch = 'master';
+    } else {
+      spinner.stop();
+      throw new Error('main または master ブランチが見つかりません');
+    }
 
-    const shouldSwitch = await confirm({
-      message: 'main/masterブランチから新しいブランチを作成しますか？',
-      default: true
-    });
+    // 現在のブランチがmain/master以外の場合は切り替え
+    if (currentBranch !== baseBranch) {
+      spinner.stop();
+      console.log(chalk.yellow(`⚠️  現在のブランチ: ${currentBranch}`));
 
-    if (shouldSwitch) {
-      const baseBranch = await git.hasLocalBranch('main') ? 'main' : 'master';
+      const shouldSwitch = await confirm({
+        message: `${baseBranch}ブランチから新しいブランチを作成しますか？`,
+        default: true
+      });
+
+      if (!shouldSwitch) {
+        throw new Error('ブランチ作成がキャンセルされました');
+      }
+
+      // ベースブランチに切り替え
+      spinner.start(`${baseBranch}ブランチに切り替え中...`);
       await git.switchBranch(baseBranch);
       console.log(chalk.blue(`ℹ️  ${baseBranch}ブランチに切り替えました`));
     }
+
+    // リモートから最新を取得
+    spinner.start('リモートから最新の変更を取得中...');
+    try {
+      await git.pull();
+      console.log(chalk.green('✅ 最新の変更を取得しました'));
+    } catch (pullError) {
+      // pullに失敗した場合も続行（リモートがない場合など）
+      console.log(chalk.yellow('⚠️  リモートからの更新に失敗しましたが、続行します'));
+      logger.warn('pull失敗:', pullError.message);
+    }
+
+    // 新しいブランチを作成・切り替え
+    spinner.start(`ブランチ "${branchName}" を作成中...`);
+    await git.createAndSwitchBranch(branchName);
+    spinner.stop();
+
+    console.log(chalk.green(`✅ ブランチ "${branchName}" を作成し、切り替えました`));
+  } catch (error) {
+    spinner.stop();
+    throw error;
   }
-
-  await git.createAndSwitchBranch(branchName);
-  spinner.stop();
-
-  console.log(chalk.green(`✅ ブランチ "${branchName}" を作成し、切り替えました`));
 }
 
 /**
