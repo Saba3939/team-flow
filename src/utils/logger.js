@@ -5,17 +5,20 @@ const config = require('../config');
 
 class Logger {
   constructor() {
-    this.logLevel = config.app.debug ? 'debug' : 'info';
+    this.logLevel = config.get('app.debug') ? 'debug' : 'info';
     this.logFile = path.join(process.cwd(), '.team-flow.log');
   }
 
-  // ログレベルの定義
-  static levels = {
-    error: 0,
-    warn: 1,
-    info: 2,
-    debug: 3
-  };
+  // ログレベルのチェック
+  _shouldLog(level) {
+    const levels = {
+      error: 0,
+      warn: 1,
+      info: 2,
+      debug: 3
+    };
+    return levels[level] <= levels[this.logLevel];
+  }
 
   // 現在時刻のフォーマット
   _getCurrentTime() {
@@ -33,10 +36,6 @@ class Logger {
     }
   }
 
-  // ログレベルのチェック
-  _shouldLog(level) {
-    return Logger.levels[level] <= Logger.levels[this.logLevel];
-  }
 
   // エラーログ
   error(message, error = null) {
@@ -45,7 +44,7 @@ class Logger {
     const errorMsg = error ? `${message} - ${error.message}` : message;
     console.error(chalk.red('❌ エラー:'), errorMsg);
 
-    if (error && config.app.debug) {
+    if (error && config.get('app.debug')) {
       console.error(chalk.gray(error.stack));
     }
 

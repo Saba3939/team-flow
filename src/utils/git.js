@@ -1,13 +1,11 @@
 const simpleGit = require('simple-git');
-const path = require('path');
-const fs = require('fs-extra');
 const logger = require('./logger');
 const config = require('../config');
 
 class GitHelper {
   constructor() {
     this.git = simpleGit();
-    this.defaultBranch = config.github.defaultBranch;
+    this.defaultBranch = config.get('git.defaultBranch') || 'main';
   }
 
   // リポジトリがGitリポジトリかチェック
@@ -52,6 +50,17 @@ class GitHelper {
     }
   }
 
+  // ワーキングディレクトリがクリーンかチェック
+  async isWorkingDirectoryClean() {
+    try {
+      const status = await this.git.status();
+      return status.files.length === 0;
+    } catch (error) {
+      logger.error('ワーキングディレクトリクリーン状態確認に失敗', error);
+      return false;
+    }
+  }
+
   // 未コミットの変更があるかチェック
   async hasUncommittedChanges() {
     try {
@@ -71,6 +80,18 @@ class GitHelper {
       return true;
     } catch (error) {
       logger.error(`ブランチ作成に失敗: ${branchName}`, error);
+      return false;
+    }
+  }
+
+  // ブランチ作成と切り替えを同時実行
+  async createAndSwitchBranch(branchName) {
+    try {
+      await this.git.checkoutLocalBranch(branchName);
+      logger.success(`ブランチ '${branchName}' を作成し、切り替えました`);
+      return true;
+    } catch (error) {
+      logger.error(`ブランチ作成・切り替えに失敗: ${branchName}`, error);
       return false;
     }
   }
@@ -106,6 +127,29 @@ class GitHelper {
     } catch (error) {
       logger.error('ローカルブランチ取得に失敗', error);
       return [];
+    }
+  }
+
+  // 特定のローカルブランチが存在するかチェック
+  async hasLocalBranch(branchName) {
+    try {
+      const branches = await this.getLocalBranches();
+      return branches.includes(branchName);
+    } catch (error) {
+      logger.error(`ローカルブランチ存在確認に失敗: ${branchName}`, error);
+      return false;
+    }
+  }
+
+  // リモートURLを取得
+  async getRemoteUrl(remoteName = 'origin') {
+    try {
+      const remotes = await this.git.getRemotes(true);
+      const remote = remotes.find(r => r.name === remoteName);
+      return remote ? remote.refs.fetch : null;
+    } catch (error) {
+      logger.error(`リモートURL取得に失敗: ${remoteName}`, error);
+      return null;
     }
   }
 
@@ -237,6 +281,17 @@ class GitHelper {
       return remotes.some(remote => remote.name === 'origin');
     } catch (error) {
       logger.error('リモート確認に失敗', error);
+      return false;
+    }
+  }
+
+  // リポジトリがクリーンかチェック（未コミット変更・ステージング変更なし）
+  async isRepoClean() {
+    try {
+      const status = await this.git.status();
+      return status.files.length === 0;
+    } catch (error) {
+      logger.error('リポジトリクリーン状態確認に失敗', error);
       return false;
     }
   }

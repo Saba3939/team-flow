@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__serena__list_dir",
+      "mcp__serena__get_current_config",
+      "Bash(cat:*)",
+      "mcp__serena__activate_project",
+      "mcp__voicevox__speak",
+      "mcp__serena__find_symbol",
+      "mcp__serena__write_memory",
+      "Bash(node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

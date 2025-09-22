@@ -1,4 +1,4 @@
-const logger = require('./logger');
+// Validationクラスはloggerを直接使用せず、呼び出し元でログを処理する
 
 class Validation {
   // ブランチ名の検証
@@ -22,7 +22,7 @@ class Validation {
     const invalidPatterns = [
       /\s/,              // 空白文字
       /\.\./,            // 連続するドット
-      /[~^:?*\[\]\\]/,   // 特殊文字
+      /[~^:?*[\]\\]/,   // 特殊文字
       /^-/,              // ハイフンで始まる
       /-$/,              // ハイフンで終わる
       /^HEAD$/i,         // HEADは予約語
