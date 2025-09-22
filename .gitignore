@@ -66,3 +66,7 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# Claude Code dependency
+.claude/
+.serena/

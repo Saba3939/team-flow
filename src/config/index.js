@@ -1,76 +1,229 @@
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
+const chalk = require('chalk');
 
-// 環境変数の読み込み
+// 環境変数を読み込み
 dotenv.config();
 
+/**
+ * 設定管理クラス
+ * 環境変数の読み込み、検証、デフォルト値の管理を行う
+ */
 class Config {
   constructor() {
-    this.github = {
-      token: process.env.GITHUB_TOKEN,
-      defaultBranch: process.env.DEFAULT_BRANCH || 'main'
+    this.config = {};
+    this.required = ['GITHUB_TOKEN'];
+    this.optional = [
+      'SLACK_TOKEN',
+      'SLACK_CHANNEL',
+      'DISCORD_WEBHOOK_URL',
+      'NODE_ENV',
+      'DEBUG',
+      'LOG_LEVEL',
+      'DEFAULT_BRANCH',
+      'AUTO_PUSH',
+      'AUTO_PR',
+      'CONFIRM_DESTRUCTIVE_ACTIONS'
+    ];
+
+    this.loadConfig();
+  }
+
+  /**
+   * 設定を読み込み
+   */
+  loadConfig() {
+    // 必須設定
+    this.config.github = {
+      token: process.env.GITHUB_TOKEN
     };
 
-    this.slack = {
+    // 通知設定（オプション）
+    this.config.slack = {
       token: process.env.SLACK_TOKEN,
       channel: process.env.SLACK_CHANNEL || '#general'
     };
 
-    this.discord = {
+    this.config.discord = {
       webhookUrl: process.env.DISCORD_WEBHOOK_URL
     };
 
-    this.app = {
+    // アプリケーション設定
+    this.config.app = {
       nodeEnv: process.env.NODE_ENV || 'development',
-      debug: process.env.DEBUG === 'true',
-      autoPush: process.env.AUTO_PUSH === 'true',
-      autoPR: process.env.AUTO_PR === 'true'
+      debug: process.env.DEBUG === 'true' || false,
+      logLevel: process.env.LOG_LEVEL || 'info'
+    };
+
+    // Git設定
+    this.config.git = {
+      defaultBranch: process.env.DEFAULT_BRANCH || 'main',
+      autoPush: process.env.AUTO_PUSH === 'true' || false,
+      autoPR: process.env.AUTO_PR === 'true' || false
+    };
+
+    // セキュリティ設定
+    this.config.security = {
+      confirmDestructiveActions: process.env.CONFIRM_DESTRUCTIVE_ACTIONS !== 'false'
     };
   }
 
-  // GitHub設定の検証
+  /**
+   * 設定を検証
+   * @returns {Object} 検証結果
+   */
+  validate() {
+    const errors = [];
+    const warnings = [];
+
+    // 必須設定の確認
+    if (!this.config.github.token) {
+      errors.push('GITHUB_TOKEN is required. Please set your GitHub Personal Access Token.');
+    } else if (!this.isValidGitHubToken(this.config.github.token)) {
+      errors.push('GITHUB_TOKEN format appears to be invalid. Please check your token.');
+    }
+
+    // .envファイルの存在確認
+    const envPath = path.join(process.cwd(), '.env');
+    if (!fs.existsSync(envPath)) {
+      warnings.push('.env file not found. Please copy .env.example to .env and configure it.');
+    }
+
+    // 通知設定の警告
+    if (!this.config.slack.token && !this.config.discord.webhookUrl) {
+      warnings.push('No notification services configured. Team notifications will be disabled.');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * GitHubトークンの基本的な形式チェック
+   * @param {string} token - GitHubトークン
+   * @returns {boolean} 有効かどうか
+   */
+  isValidGitHubToken(token) {
+    // GitHub Personal Access Tokenの基本的な形式チェック
+    // Classic tokens: ghp_xxxx (40文字)
+    // Fine-grained tokens: github_pat_xxxx
+    return /^(ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{82})$/.test(token);
+  }
+
+  /**
+   * 設定の初期化ガイダンスを表示
+   */
+  showSetupGuide() {
+    console.log(chalk.yellow('\n🔧 team-flow セットアップガイド\n'));
+
+    console.log(chalk.cyan('1. 環境設定ファイルをコピー:'));
+    console.log('   cp .env.example .env\n');
+
+    console.log(chalk.cyan('2. GitHub Personal Access Tokenを取得:'));
+    console.log('   - GitHub Settings > Developer settings > Personal access tokens');
+    console.log('   - 必要な権限: repo, read:user\n');
+
+    console.log(chalk.cyan('3. .envファイルを編集:'));
+    console.log('   - GITHUB_TOKENを設定（必須）');
+    console.log('   - 通知設定は任意\n');
+
+    console.log(chalk.cyan('4. 設定確認:'));
+    console.log('   team-flow --check-config\n');
+
+    console.log(chalk.red('⚠️  重要: .envファイルは絶対にコミットしないでください！'));
+  }
+
+  /**
+   * 設定を取得
+   * @param {string} path - 設定のパス（例: 'github.token'）
+   * @returns {any} 設定値
+   */
+  get(path) {
+    const keys = path.split('.');
+    let value = this.config;
+
+    for (const key of keys) {
+      value = value?.[key];
+    }
+
+    return value;
+  }
+
+  /**
+   * 通知機能が有効かチェック
+   * @returns {Object} 有効な通知サービス
+   */
+  getAvailableNotifications() {
+    const available = {};
+
+    if (this.config.slack.token) {
+      available.slack = true;
+    }
+
+    if (this.config.discord.webhookUrl) {
+      available.discord = true;
+    }
+
+    return available;
+  }
+
+  /**
+   * 開発モードかチェック
+   * @returns {boolean} 開発モードかどうか
+   */
+  isDevelopment() {
+    return this.config.app.nodeEnv === 'development';
+  }
+
+  /**
+   * デバッグモードかチェック
+   * @returns {boolean} デバッグモードかどうか
+   */
+  isDebug() {
+    return this.config.app.debug;
+  }
+
+  // 後方互換性のためのメソッド群
   validateGitHubConfig() {
-    if (!this.github.token) {
-      throw new Error('GITHUB_TOKEN環境変数が設定されていません。.envファイルを確認してください。');
+    const validation = this.validate();
+    if (!validation.isValid) {
+      throw new Error(validation.errors.join('\n'));
     }
     return true;
   }
 
-  // Slack設定の検証（オプション）
   validateSlackConfig() {
-    return !!this.slack.token;
+    return !!this.config.slack.token;
   }
 
-  // Discord設定の検証（オプション）
   validateDiscordConfig() {
-    return !!this.discord.webhookUrl;
+    return !!this.config.discord.webhookUrl;
   }
 
-  // 設定情報を取得
   getConfig() {
-    return {
-      github: this.github,
-      slack: this.slack,
-      discord: this.discord,
-      app: this.app
-    };
+    return this.config;
   }
 
-  // デバッグ情報を取得（トークンなどの機密情報は除外）
   getDebugInfo() {
     return {
       github: {
-        hasToken: !!this.github.token,
-        defaultBranch: this.github.defaultBranch
+        hasToken: !!this.config.github.token,
+        defaultBranch: this.config.git.defaultBranch
       },
       slack: {
-        hasToken: !!this.slack.token,
-        channel: this.slack.channel
+        hasToken: !!this.config.slack.token,
+        channel: this.config.slack.channel
       },
       discord: {
-        hasWebhook: !!this.discord.webhookUrl
+        hasWebhook: !!this.config.discord.webhookUrl
       },
-      app: this.app
+      app: this.config.app,
+      git: this.config.git,
+      security: this.config.security
     };
   }
 }
