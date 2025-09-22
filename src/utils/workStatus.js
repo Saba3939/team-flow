@@ -301,7 +301,7 @@ class WorkStatus {
       console.log(chalk.bold('\n💡 推奨アクション:'));
       recommendations.forEach((rec, index) => {
         const priorityColor = rec.priority === 'high' ? chalk.red :
-                            rec.priority === 'medium' ? chalk.yellow : chalk.gray;
+          rec.priority === 'medium' ? chalk.yellow : chalk.gray;
         console.log(`  ${index + 1}. ${rec.icon} ${chalk.bold(rec.title)}`);
         console.log(`     ${chalk.gray(rec.description)} ${priorityColor(`[${rec.priority}]`)}`);
       });

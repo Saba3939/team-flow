@@ -440,7 +440,7 @@ async function executeUpdateStatusAction() {
     const workStatus = new WorkStatus();
     const status = await workStatus.analyze();
 
-    const message = `📊 作業状況更新\n` +
+    const message = '📊 作業状況更新\n' +
                    `ブランチ: ${currentBranch}\n` +
                    `作業時間: ${status.time.workingHours}時間\n` +
                    `最新コミット: ${status.time.hoursSinceLastCommit}時間前`;

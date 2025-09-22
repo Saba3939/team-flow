@@ -45,6 +45,35 @@ class GitHelper {
     }
   }
 
+  // 変更されたファイルの一覧を取得
+  async getChangedFiles() {
+    try {
+      const status = await this.git.status();
+      
+      const files = [];
+      
+      // 変更されたファイル
+      status.modified.forEach(file => files.push({ path: file, status: 'M' }));
+      
+      // 追加されたファイル  
+      status.created.forEach(file => files.push({ path: file, status: 'A' }));
+      
+      // 削除されたファイル
+      status.deleted.forEach(file => files.push({ path: file, status: 'D' }));
+      
+      // 名前変更されたファイル
+      status.renamed.forEach(file => files.push({ path: file.to, status: 'R' }));
+      
+      // 未追跡ファイル
+      status.not_added.forEach(file => files.push({ path: file, status: '??' }));
+      
+      return files;
+    } catch (error) {
+      logger.error('変更ファイル取得エラー:', error);
+      throw new Error('変更ファイルの取得に失敗しました: ' + error.message);
+    }
+  }
+
   // 変更があるかチェック
   async hasChanges() {
     try {
@@ -208,7 +237,7 @@ class GitHelper {
       spinner = ora(`変更をリモートにプッシュ実行中... (${currentBranch})`).start();
       
       // プッシュ実行（タイムアウト保護済み）
-      const result = await Promise.race([
+      await Promise.race([
         this.git.push('origin', currentBranch),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('プッシュがタイムアウトしました（30秒）')), 30000)
@@ -236,6 +265,18 @@ class GitHelper {
     }
   }
 
+  // 指定したブランチをプッシュ
+  async pushBranch(branchName) {
+    try {
+      await this.git.push('origin', branchName);
+      logger.success(`ブランチ ${branchName} をプッシュしました`);
+      return true;
+    } catch (error) {
+      logger.error('ブランチプッシュに失敗', error);
+      throw new Error(`ブランチ ${branchName} のプッシュに失敗しました: ${error.message}`);
+    }
+  }
+
   // 代替のプッシュメソッド（直接gitコマンド実行）
   async pushDirect(branch = null) {
     const { exec } = require('child_process');
@@ -259,7 +300,7 @@ class GitHelper {
         cwd: process.cwd()
       });
       
-      console.log(`[DEBUG] gitコマンド完了`);
+      console.log('[DEBUG] gitコマンド完了');
       console.log(`[DEBUG] stdout: ${stdout}`);
       if (stderr) console.log(`[DEBUG] stderr: ${stderr}`);
       
@@ -303,6 +344,23 @@ class GitHelper {
     } catch (error) {
       logger.error('コミット履歴取得に失敗', error);
       return [];
+    }
+  }
+
+  // 最近のコミット一覧を取得
+  async getRecentCommits(count = 5) {
+    try {
+      const log = await this.git.log({ maxCount: count });
+      
+      return log.all.map(commit => ({
+        hash: commit.hash,
+        message: commit.message,
+        author: commit.author_name,
+        date: commit.date
+      }));
+    } catch (error) {
+      logger.error('最近のコミット取得エラー:', error);
+      throw new Error('最近のコミットの取得に失敗しました: ' + error.message);
     }
   }
 
@@ -430,9 +488,9 @@ class GitHelper {
   }
 
   // ahead/behind 状況を取得
-  async getAheadBehind(branchName = null) {
+  async getAheadBehind(_branchName = null) {
     try {
-      const currentBranch = branchName || await this.getCurrentBranch();
+      // const currentBranch = branchName || await this.getCurrentBranch(); // 必要に応じて使用
       const status = await this.git.status();
 
       return {
@@ -537,7 +595,7 @@ class GitHelper {
       spinner = ora(`リモートブランチを作成してプッシュ実行中... (${branchName})`).start();
       
       // upstream設定でプッシュ実行（タイムアウト保護済み）
-      const result = await Promise.race([
+      await Promise.race([
         this.git.push('origin', branchName, ['-u']),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('プッシュがタイムアウトしました（30秒）')), 30000)
@@ -585,7 +643,7 @@ class GitHelper {
         cwd: process.cwd()
       });
       
-      console.log(`[DEBUG] pushSetUpstream gitコマンド完了`);
+      console.log('[DEBUG] pushSetUpstream gitコマンド完了');
       console.log(`[DEBUG] stdout: ${stdout}`);
       if (stderr) console.log(`[DEBUG] stderr: ${stderr}`);
       
