@@ -2,6 +2,8 @@ const git = require('./git');
 const GitHubService = require('../services/github');
 const chalk = require('chalk');
 const logger = require('./logger');
+// GitHubServiceのインスタンス作成
+const githubService = new GitHubService();
 
 /**
  * 現在の作業状況を分析するユーティリティ
@@ -134,11 +136,11 @@ class WorkStatus {
       const currentBranch = await git.getCurrentBranch();
       const issueNumber = this.extractIssueNumber(currentBranch);
 
-      if (!issueNumber || !await GitHubService.isConfigured()) {
+      if (!issueNumber || !await githubService.isConfigured()) {
         return { hasIssue: false };
       }
 
-      const issue = await GitHubService.getIssue(issueNumber);
+      const issue = await githubService.getIssue(issueNumber);
       if (!issue) {
         return { hasIssue: false };
       }

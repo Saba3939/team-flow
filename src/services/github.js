@@ -45,7 +45,10 @@ class GitHubService {
   /**
    * GitHub設定が有効かチェック
    */
-  static async isConfigured() {
+  /**
+   * GitHub設定が有効かチェック
+   */
+  isConfigured() {
     return process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN.length > 0;
   }
 
@@ -141,6 +144,19 @@ class GitHubService {
       };
     } catch (error) {
       logger.error('Issue作成エラー:', error);
+      
+      // 権限エラーの場合、より具体的なメッセージを表示
+      if (error.message && error.message.includes('Resource not accessible by personal access token')) {
+        throw new Error(
+          'GitHub Personal Access Tokenの権限が不足しています。\n' +
+          'GitHubの設定で以下を確認してください：\n' +
+          '1. Settings → Developer settings → Personal access tokens\n' +
+          '2. "repo" スコープが有効になっているか確認\n' +
+          '3. トークンが期限切れしていないか確認\n' +
+          '詳細: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens'
+        );
+      }
+      
       throw new Error('Issueの作成に失敗しました: ' + error.message);
     }
   }
@@ -351,4 +367,4 @@ class GitHubService {
   }
 }
 
-module.exports = new GitHubService();
+module.exports = GitHubService;

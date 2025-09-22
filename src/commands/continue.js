@@ -6,6 +6,9 @@ const GitHubService = require('../services/github');
 const NotificationService = require('../services/notifications');
 const WorkStatus = require('../utils/workStatus');
 const logger = require('../utils/logger');
+// GitHubServiceのインスタンス作成
+const githubService = new GitHubService();
+const notificationService = new NotificationService();
 
 /**
  * 進行中の作業を継続するコマンド
@@ -156,6 +159,13 @@ async function executeAction(action) {
     // スキップが要求された場合は早期リターン
     if (result && result.skipRemaining) {
       return result;
+    }
+    
+    // 結果を確認して適切にメッセージを表示
+    if (result && result.success === false) {
+      // アクション内でエラーが発生した場合
+      console.log(chalk.red(`❌ ${action.title}でエラーが発生しました${result.error ? ': ' + result.error : ''}`));
+      return { success: false };
     }
     
     // コミットアクション以外のみメッセージを表示（コミットは独自メッセージあり）
@@ -320,23 +330,32 @@ async function executePushAction() {
   const currentBranch = await git.getCurrentBranch();
   const hasRemote = await git.hasRemoteBranch(currentBranch);
 
-  if (!hasRemote) {
-    const shouldSetUpstream = await confirm({
-      message: 'リモートブランチが存在しません。新しく作成しますか？',
-      default: true
-    });
-
-    if (shouldSetUpstream) {
-      await git.pushSetUpstream(currentBranch);
+  try {
+    if (!hasRemote) {
+      // confirmプロンプトがハングするため、直接upstream設定でプッシュ
+      try {
+        await git.pushSetUpstream(currentBranch);
+      } catch (simpleGitError) {
+        // simple-gitで失敗した場合は直接gitコマンドで実行
+        await git.pushSetUpstreamDirect(currentBranch);
+      }
     } else {
-      throw new Error('リモートブランチが設定されていません');
+      // 通常のプッシュを実行
+      try {
+        await git.push();
+      } catch (simpleGitError) {
+        // simple-gitで失敗した場合は直接gitコマンドで実行
+        await git.pushDirect();
+      }
     }
-  } else {
-    await git.push();
+    
+    return { success: true };
+  } catch (error) {
+    // エラーログは既にGitHelperで出力されているので、ここでは処理結果のみ返す
+    return { success: false, error: error.message };
   }
-  
-  return { success: true };
 }
+
 
 /**
  * 同期アクションを実行（競合解決）
@@ -388,7 +407,7 @@ async function executeTestAction() {
  * Issue更新アクションを実行
  */
 async function executeUpdateIssueAction() {
-  if (!await GitHubService.isConfigured()) {
+  if (!await githubService.isConfigured()) {
     console.log(chalk.yellow('⚠️  GitHub設定が見つかりません'));
     return { success: true };
   }
@@ -405,7 +424,7 @@ async function executeUpdateIssueAction() {
   const progressUpdate = `進捗更新: ${commits.length}個の新しいコミットを追加しました\n\n` +
                         commits.map(commit => `- ${commit.message}`).join('\n');
 
-  await GitHubService.addIssueComment(issueNumber, progressUpdate);
+  await githubService.addIssueComment(issueNumber, progressUpdate);
   console.log(chalk.blue(`📋 Issue #${issueNumber} に進捗を更新しました`));
   
   return { success: true };
@@ -416,7 +435,7 @@ async function executeUpdateIssueAction() {
  */
 async function executeUpdateStatusAction() {
   // チーム通知があれば送信
-  if (await NotificationService.isConfigured()) {
+  if (await notificationService.isConfigured()) {
     const currentBranch = await git.getCurrentBranch();
     const workStatus = new WorkStatus();
     const status = await workStatus.analyze();
@@ -426,7 +445,7 @@ async function executeUpdateStatusAction() {
                    `作業時間: ${status.time.workingHours}時間\n` +
                    `最新コミット: ${status.time.hoursSinceLastCommit}時間前`;
 
-    await NotificationService.send(message);
+    await notificationService.send(message);
     console.log(chalk.blue('📢 チームに状況を通知しました'));
   } else {
     console.log(chalk.blue('📊 作業状況を記録しました'));
