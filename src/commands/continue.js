@@ -1,6 +1,6 @@
 const chalk = require('chalk');
 const ora = require('ora');
-const { select, confirm } = require('@inquirer/prompts');
+const { select, confirm, input } = require('@inquirer/prompts');
 const git = require('../utils/git');
 const GitHubService = require('../services/github');
 const NotificationService = require('../services/notifications');
@@ -198,11 +198,63 @@ async function executeCommitAction() {
         throw new Error('ステージングに失敗しました');
       }
       
-      console.log(chalk.gray('コミットメッセージを生成中...'));
-      const commitMessage = await git.generateCommitMessage();
+      // Conventional Commitsプレフィックスの選択
+      const prefix = await select({
+        message: 'コミットの種類を選択してください:',
+        choices: [
+          { 
+            name: '🆕 feat: 新機能 (A new feature)', 
+            value: 'feat' 
+          },
+          { 
+            name: '🐛 fix: バグ修正 (A bug fix)', 
+            value: 'fix' 
+          },
+          { 
+            name: '📝 docs: ドキュメント (Documentation only changes)', 
+            value: 'docs' 
+          },
+          { 
+            name: '🎨 style: スタイル変更 (Code style changes)', 
+            value: 'style' 
+          },
+          { 
+            name: '♻️ refactor: リファクタリング (Code refactoring)', 
+            value: 'refactor' 
+          },
+          { 
+            name: '⚡ perf: パフォーマンス改善 (Performance improvement)', 
+            value: 'perf' 
+          },
+          { 
+            name: '🧪 test: テスト (Adding or correcting tests)', 
+            value: 'test' 
+          },
+          { 
+            name: '🔧 chore: その他 (Build process, tools, etc)', 
+            value: 'chore' 
+          }
+        ]
+      });
       
-      console.log(chalk.gray(`コミット中: "${commitMessage}"`));
-      const commitResult = await git.commit(commitMessage);
+      // コミットメッセージの入力
+      const message = await input({
+        message: `コミットメッセージを入力してください (${prefix}:):`,
+        validate: (input) => {
+          if (!input || input.trim().length === 0) {
+            return 'コミットメッセージは必須です';
+          }
+          if (input.trim().length < 3) {
+            return 'コミットメッセージは3文字以上で入力してください';
+          }
+          return true;
+        }
+      });
+      
+      const fullCommitMessage = `${prefix}: ${message.trim()}`;
+      
+      console.log(chalk.gray(`コミット中: "${fullCommitMessage}"`));
+      const commitResult = await git.commit(fullCommitMessage);
       
       if (!commitResult) {
         throw new Error('コミットに失敗しました');
