@@ -203,32 +203,22 @@ class GitHelper {
     
     try {
       const currentBranch = branch || await this.getCurrentBranch();
-      console.log(`[DEBUG] プッシュ開始: ブランチ ${currentBranch}`);
       
       // 進捗表示を追加
       spinner = ora(`変更をリモートにプッシュ実行中... (${currentBranch})`).start();
       
-      console.log(`[DEBUG] simple-git.push()を呼び出します`);
-      console.log(`[DEBUG] 引数: origin, ${currentBranch}`);
-      
       // プッシュ実行（タイムアウト保護済み）
       const result = await Promise.race([
         this.git.push('origin', currentBranch),
-        new Promise((_, reject) => {
-          console.log(`[DEBUG] タイムアウトタイマー開始: 30秒`);
-          setTimeout(() => {
-            console.log(`[DEBUG] タイムアウト発生！`);
-            reject(new Error('プッシュがタイムアウトしました（30秒）'));
-          }, 30000);
-        })
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('プッシュがタイムアウトしました（30秒）')), 30000)
+        )
       ]);
       
-      console.log(`[DEBUG] プッシュ完了`);
       spinner.stop();
       logger.success(`プッシュしました: ${currentBranch}`);
       return true;
     } catch (error) {
-      console.log(`[DEBUG] プッシュでエラー発生: ${error.message}`);
       if (spinner) spinner.stop();
       
       // より詳細なエラー情報を提供
@@ -543,32 +533,21 @@ class GitHelper {
     let spinner;
     
     try {
-      console.log(`[DEBUG] pushSetUpstream開始: ブランチ ${branchName}`);
-      
       // 進捗表示を追加
       spinner = ora(`リモートブランチを作成してプッシュ実行中... (${branchName})`).start();
-      
-      console.log(`[DEBUG] simple-git.push()をupstream設定で呼び出します`);
-      console.log(`[DEBUG] 引数: origin, ${branchName}, ['-u']`);
       
       // upstream設定でプッシュ実行（タイムアウト保護済み）
       const result = await Promise.race([
         this.git.push('origin', branchName, ['-u']),
-        new Promise((_, reject) => {
-          console.log(`[DEBUG] pushSetUpstream タイムアウトタイマー開始: 30秒`);
-          setTimeout(() => {
-            console.log(`[DEBUG] pushSetUpstream タイムアウト発生！`);
-            reject(new Error('プッシュがタイムアウトしました（30秒）'));
-          }, 30000);
-        })
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('プッシュがタイムアウトしました（30秒）')), 30000)
+        )
       ]);
       
-      console.log(`[DEBUG] pushSetUpstream完了`);
       spinner.stop();
       logger.success(`upstream設定でプッシュしました: ${branchName}`);
       return true;
     } catch (error) {
-      console.log(`[DEBUG] pushSetUpstreamでエラー発生: ${error.message}`);
       if (spinner) spinner.stop();
       
       // より詳細なエラー情報を提供

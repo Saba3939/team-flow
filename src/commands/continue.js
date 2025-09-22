@@ -331,82 +331,31 @@ async function executePushAction() {
   const hasRemote = await git.hasRemoteBranch(currentBranch);
 
   try {
-    console.log(`[DEBUG] executePushAction開始: ブランチ ${currentBranch}, hasRemote: ${hasRemote}`);
-    
     if (!hasRemote) {
-      console.log(`[DEBUG] リモートブランチが存在しません。プロンプトが問題なので直接upstream設定でプッシュします`);
-      
-      // confirmプロンプトがハングするため、直接実行
-      console.log(`[DEBUG] upstream設定でプッシュします（プロンプトスキップ）`);
-      
-      // まずsimple-gitでupstream設定を試行
+      // confirmプロンプトがハングするため、直接upstream設定でプッシュ
       try {
-        console.log(`[DEBUG] git.pushSetUpstream()を呼び出します`);
         await git.pushSetUpstream(currentBranch);
       } catch (simpleGitError) {
-        console.log(`[DEBUG] simple-gitのpushSetUpstreamでエラー、直接gitコマンドで再試行: ${simpleGitError.message}`);
         // simple-gitで失敗した場合は直接gitコマンドで実行
         await git.pushSetUpstreamDirect(currentBranch);
       }
     } else {
-      console.log(`[DEBUG] 通常のプッシュを実行します`);
-      
-      // まず通常のsimple-gitで試行
+      // 通常のプッシュを実行
       try {
         await git.push();
       } catch (simpleGitError) {
-        console.log(`[DEBUG] simple-gitでエラー、直接gitコマンドで再試行: ${simpleGitError.message}`);
         // simple-gitで失敗した場合は直接gitコマンドで実行
         await git.pushDirect();
       }
     }
     
-    console.log(`[DEBUG] executePushAction完了`);
     return { success: true };
   } catch (error) {
-    console.log(`[DEBUG] executePushActionでエラー: ${error.message}`);
     // エラーログは既にGitHelperで出力されているので、ここでは処理結果のみ返す
     return { success: false, error: error.message };
   }
 }
 
-// 代替のconfirm実装（プロンプトライブラリに問題がある場合用）
-async function executeDirectPushAction() {
-  const currentBranch = await git.getCurrentBranch();
-  const hasRemote = await git.hasRemoteBranch(currentBranch);
-
-  try {
-    console.log(`[DEBUG] executeDirectPushAction開始: ブランチ ${currentBranch}, hasRemote: ${hasRemote}`);
-    
-    if (!hasRemote) {
-      console.log(`[DEBUG] リモートブランチが存在しません。直接upstream設定でプッシュします`);
-      
-      // プロンプトをスキップして直接実行
-      try {
-        console.log(`[DEBUG] git.pushSetUpstreamDirect()を直接呼び出します`);
-        await git.pushSetUpstreamDirect(currentBranch);
-      } catch (directError) {
-        console.log(`[DEBUG] 直接gitコマンドでもエラー: ${directError.message}`);
-        throw directError;
-      }
-    } else {
-      console.log(`[DEBUG] 通常のプッシュを直接実行します`);
-      
-      try {
-        await git.pushDirect();
-      } catch (directError) {
-        console.log(`[DEBUG] 直接gitコマンドでエラー: ${directError.message}`);
-        throw directError;
-      }
-    }
-    
-    console.log(`[DEBUG] executeDirectPushAction完了`);
-    return { success: true };
-  } catch (error) {
-    console.log(`[DEBUG] executeDirectPushActionでエラー: ${error.message}`);
-    return { success: false, error: error.message };
-  }
-}
 
 /**
  * 同期アクションを実行（競合解決）
