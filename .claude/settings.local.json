@@ -8,7 +8,11 @@
       "mcp__voicevox__speak",
       "mcp__serena__find_symbol",
       "mcp__serena__write_memory",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "mcp__serena__find_file",
+      "mcp__serena__replace_symbol_body",
+      "mcp__serena__search_for_pattern",
+      "mcp__serena__get_symbols_overview"
     ],
     "deny": [],
     "ask": []

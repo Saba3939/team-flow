@@ -6,6 +6,35 @@ const ConfigValidator = require('./utils/config-validator');
 
 const program = new Command();
 
+// SIGINT (Ctrl+C) のハンドリング設定
+process.on('SIGINT', () => {
+  console.log(chalk.yellow('\n\n⚠️  操作がキャンセルされました'));
+  console.log(chalk.gray('team-flow を終了します...'));
+  process.exit(0);
+});
+
+// プロセス終了時のクリーンアップ
+process.on('SIGTERM', () => {
+  console.log(chalk.yellow('\n\n⚠️  プロセスが終了されました'));
+  process.exit(0);
+});
+
+// 未処理の例外をキャッチ
+process.on('uncaughtException', (error) => {
+  console.error(chalk.red('\n❌ 予期しないエラーが発生しました:'));
+  console.error(error.message);
+  console.log(chalk.gray('team-flow を終了します...'));
+  process.exit(1);
+});
+
+// 未処理のPromise拒否をキャッチ  
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(chalk.red('\n❌ 未処理のPromise拒否:'));
+  console.error(reason);
+  console.log(chalk.gray('team-flow を終了します...'));
+  process.exit(1);
+});
+
 // プログラム情報設定
 program
   .name('team-flow')
@@ -24,9 +53,9 @@ program
 program
   .command('continue')
   .description('作業を継続')
-  .action(() => {
-    console.log(chalk.green('⏯️  作業を継続します...'));
-    // TODO: continueコマンドの実装
+  .action(async () => {
+    const continueCommand = require('./commands/continue');
+    await continueCommand();
   });
 
 program

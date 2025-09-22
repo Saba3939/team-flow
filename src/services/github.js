@@ -181,6 +181,37 @@ class GitHubService {
   }
 
   /**
+   * Issueにコメントを追加
+   */
+  async addIssueComment(issueNumber, body) {
+    await this.initialize();
+
+    if (!this.initialized) {
+      throw new Error('GitHub API が初期化されていません');
+    }
+
+    try {
+      const response = await this.octokit.rest.issues.createComment({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        body
+      });
+
+      logger.info(`Issue #${issueNumber} にコメントを追加しました`);
+      return {
+        id: response.data.id,
+        body: response.data.body,
+        created_at: response.data.created_at,
+        html_url: response.data.html_url
+      };
+    } catch (error) {
+      logger.error('Issueコメント追加エラー:', error);
+      throw new Error(`Issue #${issueNumber} へのコメント追加に失敗しました: ` + error.message);
+    }
+  }
+
+  /**
    * プルリクエストを作成
    */
   async createPullRequest(title, body, head, base = 'main') {
