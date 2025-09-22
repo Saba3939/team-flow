@@ -192,9 +192,16 @@ class GitHelper {
 
   // プッシュ
   async push(branch = null) {
+    const ora = require('ora');
     try {
       const currentBranch = branch || await this.getCurrentBranch();
+      
+      // 進捗表示を追加
+      const spinner = ora(`変更をリモートにプッシュ実行中... (${currentBranch})`).start();
+      
       await this.git.push('origin', currentBranch);
+      
+      spinner.stop();
       logger.success(`プッシュしました: ${currentBranch}`);
       return true;
     } catch (error) {
@@ -448,8 +455,14 @@ class GitHelper {
 
   // upstream設定でプッシュ
   async pushSetUpstream(branchName) {
+    const ora = require('ora');
     try {
+      // 進捗表示を追加
+      const spinner = ora(`リモートブランチを作成してプッシュ実行中... (${branchName})`).start();
+      
       await this.git.push('origin', branchName, ['-u']);
+      
+      spinner.stop();
       logger.success(`upstream設定でプッシュしました: ${branchName}`);
       return true;
     } catch (error) {
