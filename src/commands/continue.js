@@ -161,6 +161,13 @@ async function executeAction(action) {
       return result;
     }
     
+    // 結果を確認して適切にメッセージを表示
+    if (result && result.success === false) {
+      // アクション内でエラーが発生した場合
+      console.log(chalk.red(`❌ ${action.title}でエラーが発生しました${result.error ? ': ' + result.error : ''}`));
+      return { success: false };
+    }
+    
     // コミットアクション以外のみメッセージを表示（コミットは独自メッセージあり）
     if (action.action !== 'commit') {
       console.log(chalk.green(`✅ ${action.title}が完了しました`));
@@ -323,22 +330,27 @@ async function executePushAction() {
   const currentBranch = await git.getCurrentBranch();
   const hasRemote = await git.hasRemoteBranch(currentBranch);
 
-  if (!hasRemote) {
-    const shouldSetUpstream = await confirm({
-      message: 'リモートブランチが存在しません。新しく作成しますか？',
-      default: true
-    });
+  try {
+    if (!hasRemote) {
+      const shouldSetUpstream = await confirm({
+        message: 'リモートブランチが存在しません。新しく作成しますか？',
+        default: true
+      });
 
-    if (shouldSetUpstream) {
-      await git.pushSetUpstream(currentBranch);
+      if (shouldSetUpstream) {
+        await git.pushSetUpstream(currentBranch);
+      } else {
+        throw new Error('リモートブランチが設定されていません');
+      }
     } else {
-      throw new Error('リモートブランチが設定されていません');
+      await git.push();
     }
-  } else {
-    await git.push();
+    
+    return { success: true };
+  } catch (error) {
+    // エラーログは既にGitHelperで出力されているので、ここでは処理結果のみ返す
+    return { success: false, error: error.message };
   }
-  
-  return { success: true };
 }
 
 /**

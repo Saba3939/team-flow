@@ -206,7 +206,7 @@ class GitHelper {
       return true;
     } catch (error) {
       logger.error('プッシュに失敗', error);
-      return false;
+      throw error; // エラーを再throwして上位で処理できるようにする
     }
   }
 
@@ -467,7 +467,7 @@ class GitHelper {
       return true;
     } catch (error) {
       logger.error('upstream設定プッシュに失敗', error);
-      throw error;
+      throw error; // 既にthrowされているが明示的に記述
     }
   }
 
