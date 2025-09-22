@@ -5,6 +5,9 @@ const git = require('../utils/git');
 const GitHubService = require('../services/github');
 const NotificationService = require('../services/notifications');
 const logger = require('../utils/logger');
+// GitHubServiceのインスタンス作成
+const githubService = new GitHubService();
+const notificationService = new NotificationService();
 
 /**
  * 新しい作業を開始するコマンド
@@ -78,7 +81,7 @@ async function selectWorkType() {
  * Issue選択/作成を処理
  */
 async function handleIssueSelection() {
-  const hasGitHub = await GitHubService.isConfigured();
+  const hasGitHub = await githubService.isConfigured();
 
   if (!hasGitHub) {
     console.log(chalk.yellow('⚠️  GitHub設定が見つかりません'));
@@ -127,30 +130,63 @@ async function handleIssueSelection() {
  */
 async function selectExistingIssue() {
   const spinner = ora('Issueを取得中...').start();
-  const issues = await GitHubService.getOpenIssues();
-  spinner.stop();
+  
+  try {
+    const issues = await githubService.getOpenIssues();
+    spinner.stop();
 
-  if (issues.length === 0) {
-    console.log(chalk.yellow('⚠️  オープンなIssueがありません'));
-    return await createNewIssue();
+    if (issues.length === 0) {
+      console.log(chalk.yellow('⚠️  オープンなIssueがありません'));
+      return await createNewIssue();
+    }
+
+    const choices = issues.map(issue => ({
+      name: `#${issue.number} ${issue.title}`,
+      value: issue
+    }));
+    choices.push({ name: '新しいIssueを作成', value: 'create' });
+
+    const selected = await select({
+      message: 'Issueを選択してください:',
+      choices
+    });
+
+    if (selected === 'create') {
+      return await createNewIssue();
+    }
+
+    return selected;
+  } catch (error) {
+    spinner.stop();
+    
+    // 権限エラーの場合
+    if (error.message.includes('GitHub Personal Access Token') || 
+        error.message.includes('Resource not accessible')) {
+      console.log(chalk.red('❌ Issue取得でエラーが発生しました: GitHub APIの権限が不足しています'));
+      console.log(chalk.yellow('💡 新しいIssueを作成するか、Issueなしで作業を開始できます'));
+      
+      const action = await select({
+        message: '次のアクションを選択してください:',
+        choices: [
+          { name: '新しいIssueを作成', value: 'create' },
+          { name: 'Issueなしで作業開始', value: 'none' }
+        ]
+      });
+      
+      if (action === 'create') {
+        return await createNewIssue();
+      } else {
+        const title = await input({
+          message: '作業内容を入力してください:',
+          validate: (input) => input.length > 0 || '作業内容は必須です'
+        });
+        return { number: null, title };
+      }
+    }
+    
+    // その他のエラー
+    throw error;
   }
-
-  const choices = issues.map(issue => ({
-    name: `#${issue.number} ${issue.title}`,
-    value: issue
-  }));
-  choices.push({ name: '新しいIssueを作成', value: 'create' });
-
-  const selected = await select({
-    message: 'Issueを選択してください:',
-    choices
-  });
-
-  if (selected === 'create') {
-    return await createNewIssue();
-  }
-
-  return selected;
 }
 
 /**
@@ -167,11 +203,35 @@ async function createNewIssue() {
   });
 
   const spinner = ora('Issueを作成中...').start();
-  const issue = await GitHubService.createIssue(title, body);
-  spinner.stop();
-
-  console.log(chalk.green(`✅ Issue #${issue.number} を作成しました`));
-  return issue;
+  
+  try {
+    const issue = await githubService.createIssue(title, body);
+    spinner.stop();
+    console.log(chalk.green(`✅ Issue #${issue.number} を作成しました`));
+    return issue;
+  } catch (error) {
+    spinner.stop();
+    
+    // 権限エラーの場合、Issueなしでの作業継続を提案
+    if (error.message.includes('GitHub Personal Access Token')) {
+      console.log(chalk.red('❌ ' + error.message));
+      console.log(chalk.yellow('\n💡 Issueなしで作業を続行することもできます'));
+      
+      const shouldContinue = await confirm({
+        message: 'Issueなしで作業を開始しますか？',
+        default: true
+      });
+      
+      if (shouldContinue) {
+        return { number: null, title };
+      } else {
+        throw new Error('Issue作成が必要ですが、権限が不足しています');
+      }
+    }
+    
+    // その他のエラーはそのまま投げる
+    throw error;
+  }
 }
 
 /**
@@ -215,7 +275,7 @@ async function checkConflicts(branchName, issueInfo) {
   }
 
   // GitHub上での同一Issue番号の作業確認
-  if (issueInfo.number && await GitHubService.isConfigured()) {
+  if (issueInfo.number && await githubService.isConfigured()) {
     const remoteBranches = await git.getRemoteBranches();
     const conflictBranches = remoteBranches.filter(branch =>
       branch.includes(`issue-${issueInfo.number}-`)
@@ -276,7 +336,7 @@ async function createAndSwitchBranch(branchName) {
  * 通知を送信
  */
 async function sendNotification(workType, branchName, issueInfo) {
-  if (!await NotificationService.isConfigured()) {
+  if (!await notificationService.isConfigured()) {
     return;
   }
 
@@ -295,7 +355,7 @@ async function sendNotification(workType, branchName, issueInfo) {
                  (issueInfo.number ? `\nIssue: #${issueInfo.number}` : '');
 
   try {
-    await NotificationService.send(message);
+    await notificationService.send(message);
     console.log(chalk.blue('📢 チームに通知を送信しました'));
   } catch (error) {
     console.log(chalk.yellow('⚠️  通知の送信に失敗しました: ' + error.message));

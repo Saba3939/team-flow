@@ -6,6 +6,9 @@ const GitHubService = require('../services/github');
 const NotificationService = require('../services/notifications');
 const WorkStatus = require('../utils/workStatus');
 const logger = require('../utils/logger');
+// GitHubServiceのインスタンス作成
+const githubService = new GitHubService();
+const notificationService = new NotificationService();
 
 /**
  * 進行中の作業を継続するコマンド
@@ -388,7 +391,7 @@ async function executeTestAction() {
  * Issue更新アクションを実行
  */
 async function executeUpdateIssueAction() {
-  if (!await GitHubService.isConfigured()) {
+  if (!await githubService.isConfigured()) {
     console.log(chalk.yellow('⚠️  GitHub設定が見つかりません'));
     return { success: true };
   }
@@ -405,7 +408,7 @@ async function executeUpdateIssueAction() {
   const progressUpdate = `進捗更新: ${commits.length}個の新しいコミットを追加しました\n\n` +
                         commits.map(commit => `- ${commit.message}`).join('\n');
 
-  await GitHubService.addIssueComment(issueNumber, progressUpdate);
+  await githubService.addIssueComment(issueNumber, progressUpdate);
   console.log(chalk.blue(`📋 Issue #${issueNumber} に進捗を更新しました`));
   
   return { success: true };
@@ -416,7 +419,7 @@ async function executeUpdateIssueAction() {
  */
 async function executeUpdateStatusAction() {
   // チーム通知があれば送信
-  if (await NotificationService.isConfigured()) {
+  if (await notificationService.isConfigured()) {
     const currentBranch = await git.getCurrentBranch();
     const workStatus = new WorkStatus();
     const status = await workStatus.analyze();
@@ -426,7 +429,7 @@ async function executeUpdateStatusAction() {
                    `作業時間: ${status.time.workingHours}時間\n` +
                    `最新コミット: ${status.time.hoursSinceLastCommit}時間前`;
 
-    await NotificationService.send(message);
+    await notificationService.send(message);
     console.log(chalk.blue('📢 チームに状況を通知しました'));
   } else {
     console.log(chalk.blue('📊 作業状況を記録しました'));
