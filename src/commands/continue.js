@@ -341,7 +341,15 @@ async function executePushAction() {
 
       if (shouldSetUpstream) {
         console.log(`[DEBUG] upstream設定でプッシュします`);
-        await git.pushSetUpstream(currentBranch);
+        
+        // まずsimple-gitでupstream設定を試行
+        try {
+          await git.pushSetUpstream(currentBranch);
+        } catch (simpleGitError) {
+          console.log(`[DEBUG] simple-gitのpushSetUpstreamでエラー、直接gitコマンドで再試行: ${simpleGitError.message}`);
+          // simple-gitで失敗した場合は直接gitコマンドで実行
+          await git.pushSetUpstreamDirect(currentBranch);
+        }
       } else {
         throw new Error('リモートブランチが設定されていません');
       }

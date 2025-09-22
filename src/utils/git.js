@@ -543,21 +543,32 @@ class GitHelper {
     let spinner;
     
     try {
+      console.log(`[DEBUG] pushSetUpstream開始: ブランチ ${branchName}`);
+      
       // 進捗表示を追加
       spinner = ora(`リモートブランチを作成してプッシュ実行中... (${branchName})`).start();
+      
+      console.log(`[DEBUG] simple-git.push()をupstream設定で呼び出します`);
+      console.log(`[DEBUG] 引数: origin, ${branchName}, ['-u']`);
       
       // upstream設定でプッシュ実行（タイムアウト保護済み）
       const result = await Promise.race([
         this.git.push('origin', branchName, ['-u']),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('プッシュがタイムアウトしました（30秒）')), 30000)
-        )
+        new Promise((_, reject) => {
+          console.log(`[DEBUG] pushSetUpstream タイムアウトタイマー開始: 30秒`);
+          setTimeout(() => {
+            console.log(`[DEBUG] pushSetUpstream タイムアウト発生！`);
+            reject(new Error('プッシュがタイムアウトしました（30秒）'));
+          }, 30000);
+        })
       ]);
       
+      console.log(`[DEBUG] pushSetUpstream完了`);
       spinner.stop();
       logger.success(`upstream設定でプッシュしました: ${branchName}`);
       return true;
     } catch (error) {
+      console.log(`[DEBUG] pushSetUpstreamでエラー発生: ${error.message}`);
       if (spinner) spinner.stop();
       
       // より詳細なエラー情報を提供
@@ -566,6 +577,53 @@ class GitHelper {
         errorMessage = 'プッシュがタイムアウトしました。ネットワーク接続を確認してください';
       } else if (error.message.includes('Authentication') || error.message.includes('permission')) {
         errorMessage = '認証に失敗しました。GitHubの認証情報を確認してください';
+      }
+      
+      logger.error(errorMessage, error);
+      throw new Error(errorMessage);
+    }
+  }
+
+  // 代替のpushSetUpstreamメソッド（直接gitコマンド実行）
+  async pushSetUpstreamDirect(branchName) {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    const ora = require('ora');
+    let spinner;
+    
+    try {
+      console.log(`[DEBUG] 直接gitコマンドでpushSetUpstream開始: ブランチ ${branchName}`);
+      
+      spinner = ora(`リモートブランチを作成してプッシュ実行中... (${branchName}) - 直接実行`).start();
+      
+      // 直接gitコマンドを実行（タイムアウト付き）
+      const command = `git push -u origin ${branchName}`;
+      console.log(`[DEBUG] 実行コマンド: ${command}`);
+      
+      const { stdout, stderr } = await execAsync(command, {
+        timeout: 30000, // 30秒タイムアウト
+        cwd: process.cwd()
+      });
+      
+      console.log(`[DEBUG] pushSetUpstream gitコマンド完了`);
+      console.log(`[DEBUG] stdout: ${stdout}`);
+      if (stderr) console.log(`[DEBUG] stderr: ${stderr}`);
+      
+      spinner.stop();
+      logger.success(`upstream設定でプッシュしました: ${branchName}`);
+      return true;
+    } catch (error) {
+      console.log(`[DEBUG] 直接gitコマンドでpushSetUpstreamエラー: ${error.message}`);
+      if (spinner) spinner.stop();
+      
+      let errorMessage = '直接gitコマンドでupstream設定プッシュに失敗';
+      if (error.killed && error.signal === 'SIGTERM') {
+        errorMessage = 'プッシュがタイムアウトしました（30秒）';
+      } else if (error.message.includes('Authentication') || error.message.includes('permission')) {
+        errorMessage = '認証に失敗しました。GitHubの認証情報を確認してください';
+      } else if (error.message.includes('rejected')) {
+        errorMessage = 'プッシュが拒否されました。リモートの変更をpullしてから再実行してください';
       }
       
       logger.error(errorMessage, error);
