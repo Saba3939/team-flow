@@ -334,30 +334,19 @@ async function executePushAction() {
     console.log(`[DEBUG] executePushAction開始: ブランチ ${currentBranch}, hasRemote: ${hasRemote}`);
     
     if (!hasRemote) {
-      console.log(`[DEBUG] リモートブランチが存在しません。confirmプロンプトを表示します`);
+      console.log(`[DEBUG] リモートブランチが存在しません。プロンプトが問題なので直接upstream設定でプッシュします`);
       
-      const shouldSetUpstream = await confirm({
-        message: 'リモートブランチが存在しません。新しく作成しますか？',
-        default: true
-      });
+      // confirmプロンプトがハングするため、直接実行
+      console.log(`[DEBUG] upstream設定でプッシュします（プロンプトスキップ）`);
       
-      console.log(`[DEBUG] confirmプロンプトの結果: ${shouldSetUpstream}`);
-
-      if (shouldSetUpstream) {
-        console.log(`[DEBUG] upstream設定でプッシュします`);
-        
-        // まずsimple-gitでupstream設定を試行
-        try {
-          console.log(`[DEBUG] git.pushSetUpstream()を呼び出します`);
-          await git.pushSetUpstream(currentBranch);
-        } catch (simpleGitError) {
-          console.log(`[DEBUG] simple-gitのpushSetUpstreamでエラー、直接gitコマンドで再試行: ${simpleGitError.message}`);
-          // simple-gitで失敗した場合は直接gitコマンドで実行
-          await git.pushSetUpstreamDirect(currentBranch);
-        }
-      } else {
-        console.log(`[DEBUG] ユーザーがupstream設定を拒否しました`);
-        throw new Error('リモートブランチが設定されていません');
+      // まずsimple-gitでupstream設定を試行
+      try {
+        console.log(`[DEBUG] git.pushSetUpstream()を呼び出します`);
+        await git.pushSetUpstream(currentBranch);
+      } catch (simpleGitError) {
+        console.log(`[DEBUG] simple-gitのpushSetUpstreamでエラー、直接gitコマンドで再試行: ${simpleGitError.message}`);
+        // simple-gitで失敗した場合は直接gitコマンドで実行
+        await git.pushSetUpstreamDirect(currentBranch);
       }
     } else {
       console.log(`[DEBUG] 通常のプッシュを実行します`);
