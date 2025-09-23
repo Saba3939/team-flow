@@ -365,6 +365,184 @@ class GitHubService {
       throw new Error('ブランチの取得に失敗しました: ' + error.message);
     }
   }
+
+  /**
+   * teamコマンド用: 詳細なPR情報（レビュー情報含む）を取得
+   */
+  async getPullRequestsDetailed(state = 'open', limit = 20) {
+    await this.initialize();
+
+    if (!this.initialized) {
+      throw new Error('GitHub API が初期化されていません');
+    }
+
+    try {
+      const response = await this.octokit.rest.pulls.list({
+        owner: this.owner,
+        repo: this.repo,
+        state,
+        per_page: limit,
+        sort: 'updated',
+        direction: 'desc'
+      });
+
+      // 各PRのレビュー情報を取得
+      const detailedPRs = await Promise.all(
+        response.data.map(async (pr) => {
+          try {
+            // レビュー情報を取得
+            const reviewsResponse = await this.octokit.rest.pulls.listReviews({
+              owner: this.owner,
+              repo: this.repo,
+              pull_number: pr.number
+            });
+
+            return {
+              number: pr.number,
+              title: pr.title,
+              head: pr.head.ref,
+              base: pr.base.ref,
+              state: pr.state,
+              draft: pr.draft,
+              user: {
+                login: pr.user.login,
+                avatar_url: pr.user.avatar_url
+              },
+              requested_reviewers: pr.requested_reviewers?.map(reviewer => ({
+                login: reviewer.login,
+                avatar_url: reviewer.avatar_url
+              })) || [],
+              reviews: reviewsResponse.data.map(review => ({
+                user: review.user.login,
+                state: review.state,
+                submitted_at: review.submitted_at
+              })),
+              created_at: pr.created_at,
+              updated_at: pr.updated_at,
+              merged_at: pr.merged_at,
+              html_url: pr.html_url
+            };
+          } catch (error) {
+            // レビュー情報取得に失敗した場合は基本情報のみ返す
+            logger.warn(`PR #${pr.number} のレビュー情報取得に失敗: ${error.message}`);
+            return {
+              number: pr.number,
+              title: pr.title,
+              head: pr.head.ref,
+              base: pr.base.ref,
+              state: pr.state,
+              draft: pr.draft,
+              user: {
+                login: pr.user.login,
+                avatar_url: pr.user.avatar_url
+              },
+              requested_reviewers: pr.requested_reviewers?.map(reviewer => ({
+                login: reviewer.login,
+                avatar_url: reviewer.avatar_url
+              })) || [],
+              reviews: [],
+              created_at: pr.created_at,
+              updated_at: pr.updated_at,
+              merged_at: pr.merged_at,
+              html_url: pr.html_url
+            };
+          }
+        })
+      );
+
+      return detailedPRs;
+    } catch (error) {
+      logger.error('詳細PR取得エラー:', error);
+      throw new Error('詳細なプルリクエスト情報の取得に失敗しました: ' + error.message);
+    }
+  }
+
+  /**
+   * teamコマンド用: リポジトリの活動メトリクスを取得
+   */
+  async getRepositoryMetrics(since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) {
+    await this.initialize();
+
+    if (!this.initialized) {
+      throw new Error('GitHub API が初期化されていません');
+    }
+
+    try {
+      const sinceISO = since.toISOString();
+
+      // 並行してデータを取得
+      const [prsResponse, commitsResponse] = await Promise.all([
+        this.octokit.rest.pulls.list({
+          owner: this.owner,
+          repo: this.repo,
+          state: 'all',
+          since: sinceISO,
+          per_page: 100
+        }),
+        this.octokit.rest.repos.listCommits({
+          owner: this.owner,
+          repo: this.repo,
+          since: sinceISO,
+          per_page: 100
+        })
+      ]);
+
+      const prs = prsResponse.data;
+      const commits = commitsResponse.data;
+
+      // 期間内に作成されたPR
+      const createdPRs = prs.filter(pr => new Date(pr.created_at) >= since);
+      
+      // 期間内にマージされたPR
+      const mergedPRs = prs.filter(pr => 
+        pr.merged_at && new Date(pr.merged_at) >= since
+      );
+
+      // レビュー時間の計算（マージされたPRのみ）
+      let totalReviewTime = 0;
+      let reviewedPRsCount = 0;
+
+      for (const pr of mergedPRs) {
+        if (pr.created_at && pr.merged_at) {
+          const createdTime = new Date(pr.created_at);
+          const mergedTime = new Date(pr.merged_at);
+          const reviewTime = (mergedTime - createdTime) / (1000 * 60 * 60); // 時間単位
+          
+          if (reviewTime > 0) {
+            totalReviewTime += reviewTime;
+            reviewedPRsCount++;
+          }
+        }
+      }
+
+      const avgReviewTime = reviewedPRsCount > 0 
+        ? Math.round(totalReviewTime / reviewedPRsCount * 10) / 10 
+        : 0;
+
+      return {
+        commits: commits.length,
+        prsCreated: createdPRs.length,
+        prsMerged: mergedPRs.length,
+        avgReviewTime: avgReviewTime,
+        period: {
+          since: sinceISO,
+          until: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      logger.error('リポジトリメトリクス取得エラー:', error);
+      return {
+        commits: 0,
+        prsCreated: 0,
+        prsMerged: 0,
+        avgReviewTime: 0,
+        period: {
+          since: since.toISOString(),
+          until: new Date().toISOString()
+        }
+      };
+    }
+  }
 }
 
 module.exports = GitHubService;

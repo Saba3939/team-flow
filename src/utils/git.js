@@ -753,6 +753,79 @@ class GitHelper {
       throw error;
     }
   }
+
+  // teamコマンド用: 全ブランチを取得（ローカル・リモート）
+  async getAllBranches() {
+    try {
+      const [localBranches, remoteBranches] = await Promise.all([
+        this.getLocalBranches(),
+        this.getRemoteBranches()
+      ]);
+
+      // リモートブランチから origin/ プレフィックスを除去し、重複を削除
+      const remoteNames = remoteBranches
+        .map(branch => branch.replace('origin/', ''))
+        .filter(branch => !branch.includes('HEAD'));
+
+      // ローカルとリモートを統合して重複を除去
+      const allBranches = [...new Set([...localBranches, ...remoteNames])];
+      
+      return allBranches;
+    } catch (error) {
+      logger.error('全ブランチ取得に失敗', error);
+      return [];
+    }
+  }
+
+  // teamコマンド用: 特定ブランチの最終コミット情報を取得
+  async getLastCommit(branchName) {
+    try {
+      const log = await this.git.log([branchName, '--max-count=1']);
+      if (log.all.length > 0) {
+        const commit = log.all[0];
+        return {
+          hash: commit.hash,
+          message: commit.message,
+          author: commit.author_name,
+          date: commit.date
+        };
+      }
+      return null;
+    } catch (error) {
+      logger.error(`ブランチ ${branchName} の最終コミット取得に失敗`, error);
+      return null;
+    }
+  }
+
+  // teamコマンド用: 特定ブランチで変更されたファイル一覧を取得
+  async getChangedFilesByBranch(branchName, baseBranch = 'main') {
+    try {
+      // ベースブランチとの差分でファイル一覧を取得
+      const diff = await this.git.diff([`${baseBranch}...${branchName}`, '--name-only']);
+      return diff.split('\n').filter(file => file.trim() !== '');
+    } catch (error) {
+      logger.error(`ブランチ ${branchName} の変更ファイル取得に失敗`, error);
+      return [];
+    }
+  }
+
+  // teamコマンド用: 特定日時以降のコミットを取得（改良版）
+  async getRecentCommitsSince(since) {
+    try {
+      const sinceDate = since instanceof Date ? since.toISOString().split('T')[0] : since;
+      const log = await this.git.log(['--since=' + sinceDate, '--all']);
+      
+      return log.all.map(commit => ({
+        hash: commit.hash,
+        message: commit.message,
+        author: commit.author_name,
+        date: new Date(commit.date)
+      }));
+    } catch (error) {
+      logger.error('特定日時以降のコミット取得に失敗', error);
+      return [];
+    }
+  }
 }
 
 module.exports = new GitHelper();

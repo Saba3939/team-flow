@@ -69,9 +69,9 @@ program
 program
   .command('team')
   .description('チーム状況を確認')
-  .action(() => {
-    console.log(chalk.cyan('👥 チーム状況を確認します...'));
-    // TODO: teamコマンドの実装
+  .action(async () => {
+    const { teamCommand } = require('./commands/team');
+    await teamCommand();
   });
 
 program
