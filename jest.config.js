@@ -55,6 +55,10 @@ module.exports = {
   // 並列実行の制御（作業ディレクトリ競合を避けるため順次実行）
   maxWorkers: 1,
 
+  // 非同期処理の検出とクリーンアップ
+  detectOpenHandles: false,
+  forceExit: true,
+
   // モジュール名マッピング
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

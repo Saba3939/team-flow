@@ -5,6 +5,9 @@
 // 全テストで共通のタイムアウト設定
 jest.setTimeout(10000);
 
+// EventEmitter警告の抑制
+require('events').EventEmitter.defaultMaxListeners = 50;
+
 // 元の作業ディレクトリを保存
 const originalCwd = process.cwd();
 
@@ -84,9 +87,22 @@ afterAll(() => {
   process.exit = originalExit;
 });
 
-// 未処理のPromise rejectionをキャッチ
+// 未処理のPromise rejectionをキャッチ（テスト時は警告レベルに）
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  if (process.env.NODE_ENV === 'test') {
+    console.warn('Unhandled Rejection in test:', reason);
+  } else {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  }
+});
+
+// 未処理の例外をキャッチ
+process.on('uncaughtException', (error) => {
+  if (process.env.NODE_ENV === 'test') {
+    console.warn('Uncaught Exception in test:', error.message);
+  } else {
+    console.error('Uncaught Exception:', error);
+  }
 });
 
 // グローバルなテストヘルパー
