@@ -46,12 +46,27 @@ class TestSetup {
     }, null, 2));
 
     // .team-flowディレクトリを作成
-    await fs.ensureDir(path.join(this.testDir, '.team-flow'));
-    await fs.writeJSON(path.join(this.testDir, '.team-flow', 'config.json'), {
+    const teamFlowDir = path.join(this.testDir, '.team-flow');
+    await fs.ensureDir(teamFlowDir);
+
+    // 設定ファイルを確実に作成
+    const configPath = path.join(teamFlowDir, 'config.json');
+    const config = {
       version: '1.0.0',
       defaultBranch: 'main',
-      autoBackup: true
-    });
+      autoBackup: true,
+      notifications: {
+        slack: false,
+        discord: false
+      }
+    };
+
+    await fs.writeJSON(configPath, config, { spaces: 2 });
+
+    // 設定ファイルが作成されたことを確認
+    if (!await fs.pathExists(configPath)) {
+      throw new Error('Failed to create config.json file');
+    }
 
     return this.testDir;
   }
@@ -232,9 +247,10 @@ class TestSetup {
       env: 'GITHUB_TOKEN=ghp_test_token\nSLACK_TOKEN=xoxb-test\nDISCORD_WEBHOOK_URL=https://discord.com/webhooks/test'
     };
 
-    // フィクスチャファイルを作成
-    await fs.writeJSON(path.join(this.testDir, '.team-flow', 'config.json'), fixtures.config);
-    await fs.writeJSON(path.join(this.testDir, 'package.json'), fixtures.packageJson);
+    // フィクスチャファイルを作成（既存の場合は上書き）
+    const configPath = path.join(this.testDir, '.team-flow', 'config.json');
+    await fs.writeJSON(configPath, fixtures.config, { spaces: 2 });
+    await fs.writeJSON(path.join(this.testDir, 'package.json'), fixtures.packageJson, { spaces: 2 });
     await fs.writeFile(path.join(this.testDir, '.env'), fixtures.env);
 
     // テスト用のソースファイル
