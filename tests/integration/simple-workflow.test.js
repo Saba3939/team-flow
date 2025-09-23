@@ -27,6 +27,9 @@ describe('Team Flow Simple Integration', () => {
     await fs.writeFile('README.md', '# Test Project');
     await execAsync('git add README.md');
     await execAsync('git commit -m "Initial commit"');
+
+    // mainブランチに名前を変更（テスト環境での一貫性のため）
+    await execAsync('git branch -m main');
   });
 
   afterEach(async () => {
