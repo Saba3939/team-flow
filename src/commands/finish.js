@@ -386,25 +386,24 @@ async function getPullRequestInfo() {
 function generatePRBody(description, implementation, testing, changedFiles, branchName) {
   let body = '## 変更内容（What）\n';
   
+  // 入力された変更内容を追加
   if (description && description.trim()) {
     body += description + '\n\n';
-    // 変更ファイル一覧を追加
-    if (changedFiles && changedFiles.length > 0) {
-      body += '**変更ファイル:**\n';
-      changedFiles.forEach(file => {
-        body += `- ${file}\n`;
-      });
-    }
+  }
+  
+  // 変更ファイル一覧を常に表示
+  body += '**変更ファイル:**\n';
+  if (changedFiles && changedFiles.length > 0) {
+    changedFiles.forEach(file => {
+      body += `- ${file}\n`;
+    });
   } else {
-    // 未入力時は変更ファイル名のみ記述
-    body += '**変更ファイル:**\n';
-    if (changedFiles && changedFiles.length > 0) {
-      changedFiles.forEach(file => {
-        body += `- ${file}\n`;
-      });
-    } else {
-      body += '- 変更ファイルなし\n';
-    }
+    body += '- 変更ファイルなし\n';
+  }
+  
+  // 未入力時の表示を修正
+  if (!description || !description.trim()) {
+    body += '\n※ 変更内容の詳細は上記変更ファイルをご確認ください\n';
   }
 
   body += '\n## 実装方法（How）\n';
