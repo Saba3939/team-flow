@@ -409,4 +409,7 @@ function displayNextSteps(branchName) {
   console.log(chalk.gray(`現在のブランチ: ${branchName}`));
 }
 
-module.exports = startCommand;
+module.exports = {
+  execute: startCommand,
+  startCommand
+};

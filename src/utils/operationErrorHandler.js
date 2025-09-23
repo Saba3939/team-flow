@@ -1,4 +1,4 @@
-const errorHandler = require('./errorHandler');
+// const errorHandler = require('./errorHandler');
 const RecoveryManager = require('./recovery');
 const logger = require('./logger');
 const chalk = require('chalk');
@@ -31,7 +31,7 @@ class OperationErrorHandler {
 
     console.log(chalk.red(`\n🔴 Git操作エラーが発生しました: ${operation}`));
     console.log(chalk.yellow(`エラーの種類: ${errorType}`));
-    console.log(chalk.cyan(`\n📋 推奨対応:`));
+    console.log(chalk.cyan('\n📋 推奨対応:'));
     console.log(recovery.description);
 
     if (recovery.autoRecoverable) {
@@ -41,7 +41,7 @@ class OperationErrorHandler {
         strategy: recovery
       });
     } else {
-      console.log(chalk.red(`\n⚠️  手動での対応が必要です:`));
+      console.log(chalk.red('\n⚠️  手動での対応が必要です:'));
       recovery.manualSteps.forEach((step, index) => {
         console.log(chalk.yellow(`${index + 1}. ${step}`));
       });
@@ -66,7 +66,7 @@ class OperationErrorHandler {
 
     console.log(chalk.red(`\n🔴 GitHub APIエラーが発生しました: ${operation}`));
     console.log(chalk.yellow(`エラーの種類: ${errorType}`));
-    console.log(chalk.cyan(`\n📋 推奨対応:`));
+    console.log(chalk.cyan('\n📋 推奨対応:'));
     console.log(recovery.description);
 
     if (recovery.autoRecoverable) {
@@ -76,7 +76,7 @@ class OperationErrorHandler {
         strategy: recovery
       });
     } else {
-      console.log(chalk.red(`\n⚠️  設定確認が必要です:`));
+      console.log(chalk.red('\n⚠️  設定確認が必要です:'));
       recovery.manualSteps.forEach((step, index) => {
         console.log(chalk.yellow(`${index + 1}. ${step}`));
       });
@@ -97,7 +97,7 @@ class OperationErrorHandler {
     logger.warn(`ネットワークエラー: ${operation}`, context);
 
     console.log(chalk.yellow(`\n🟡 ネットワークエラーが発生しました: ${operation}`));
-    console.log(chalk.cyan(`自動復旧を試行します...`));
+    console.log(chalk.cyan('自動復旧を試行します...'));
 
     // 自動的に再試行
     const retryKey = `${operation}-${Date.now()}`;
@@ -119,8 +119,8 @@ class OperationErrorHandler {
     console.log(chalk.yellow(`エラーの種類: ${errorType}`));
 
     if (recovery.critical) {
-      console.log(chalk.red.bold(`\n🚨 重大なエラーです。操作を停止します。`));
-      console.log(chalk.yellow(`\n解決方法:`));
+      console.log(chalk.red.bold('\n🚨 重大なエラーです。操作を停止します。'));
+      console.log(chalk.yellow('\n解決方法:'));
       recovery.manualSteps.forEach((step, index) => {
         console.log(chalk.yellow(`${index + 1}. ${step}`));
       });
@@ -205,7 +205,7 @@ class OperationErrorHandler {
   /**
    * Git復旧戦略を取得
    */
-  async getGitRecoveryStrategy(errorType, context) {
+  async getGitRecoveryStrategy(errorType, _context) {
     const strategies = {
       'MERGE_CONFLICT': {
         description: 'マージコンフリクトが発生しています。対話的に解決する必要があります。',
@@ -256,7 +256,7 @@ class OperationErrorHandler {
   /**
    * GitHub API復旧戦略を取得
    */
-  async getGitHubApiRecoveryStrategy(errorType, context) {
+  async getGitHubApiRecoveryStrategy(errorType, _context) {
     const strategies = {
       'UNAUTHORIZED': {
         description: 'GitHub認証に失敗しました。トークンを確認してください。',
@@ -308,7 +308,7 @@ class OperationErrorHandler {
   /**
    * ファイルシステム復旧戦略を取得
    */
-  async getFileSystemRecoveryStrategy(errorType, context) {
+  async getFileSystemRecoveryStrategy(errorType, _context) {
     const strategies = {
       'FILE_NOT_FOUND': {
         description: 'ファイルまたはディレクトリが見つかりません。',
@@ -354,7 +354,7 @@ class OperationErrorHandler {
    */
   async attemptAutoRecovery(errorType, error, context) {
     try {
-      console.log(chalk.cyan(`\n🔧 自動復旧を試行中...`));
+      console.log(chalk.cyan('\n🔧 自動復旧を試行中...'));
 
       const result = await this.recoveryManager.attemptRecovery(errorType, error, context);
 
@@ -413,7 +413,7 @@ class OperationErrorHandler {
       // コンテキストに再実行可能な操作がある場合は実行
       if (context.retryOperation && typeof context.retryOperation === 'function') {
         await context.retryOperation();
-        console.log(chalk.green(`✅ 再試行に成功しました`));
+        console.log(chalk.green('✅ 再試行に成功しました'));
         delete this.retryAttempts[retryKey];
 
         return {

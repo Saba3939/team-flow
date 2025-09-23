@@ -483,4 +483,7 @@ function extractIssueNumber(branchName) {
   return match ? parseInt(match[1]) : null;
 }
 
-module.exports = continueCommand;
+module.exports = {
+  execute: continueCommand,
+  continueCommand
+};

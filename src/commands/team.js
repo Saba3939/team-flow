@@ -298,4 +298,7 @@ function getTimeAgo(date) {
 }
 
 
-module.exports = { teamCommand };
+module.exports = {
+  execute: teamCommand,
+  teamCommand
+};

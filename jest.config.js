@@ -1,13 +1,75 @@
 module.exports = {
   testEnvironment: 'node',
+
+  // テストファイルの場所
+  testMatch: [
+    '**/tests/**/*.test.js'
+  ],
+
+  // カバレッジ収集対象
   collectCoverageFrom: [
     'src/**/*.js',
-    '!src/**/*.test.js'
+    '!src/**/*.test.js',
+    '!src/**/index.js' // エントリーポイントは除外
   ],
-  testMatch: [
-    '**/tests/**/*.test.js',
-    '**/src/**/*.test.js'
-  ],
+
+  // カバレッジ設定
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html']
-};
+  coverageReporters: ['text', 'lcov', 'html', 'json'],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 85,
+      lines: 85,
+      statements: 85
+    },
+    // 重要なモジュールには高い閾値を設定
+    'src/utils/errorHandler.js': {
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95
+    },
+    'src/services/github.js': {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90
+    }
+  },
+
+  // セットアップファイル
+  setupFilesAfterEnv: ['<rootDir>/tests/helpers/utils/jestSetup.js'],
+
+  // モック設定
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
+
+  // タイムアウト設定
+  testTimeout: 10000,
+
+  // 詳細出力
+  verbose: true,
+
+  // 並列実行の制御
+  maxWorkers: '50%',
+
+  // モジュール名マッピング
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@tests/(.*)$': '<rootDir>/tests/$1'
+  },
+
+  // 監視対象外ファイル
+  watchPathIgnorePatterns: [
+    '/node_modules/',
+    '/coverage/',
+    '/.team-flow/'
+  ],
+
+  // グローバル変数
+  globals: {
+    'process.env.NODE_ENV': 'test'
+  }
+}
