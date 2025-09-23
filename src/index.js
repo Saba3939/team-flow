@@ -77,9 +77,9 @@ program
 program
   .command('help-flow')
   .description('ヘルプ・緊急対応')
-  .action(() => {
-    console.log(chalk.red('🆘 ヘルプ・緊急対応モードです...'));
-    // TODO: help-flowコマンドの実装
+  .action(async () => {
+    const helpFlowCommand = require('./commands/help-flow');
+    await helpFlowCommand();
   });
 
 // 設定関連のコマンド処理（Commanderより先に処理）
