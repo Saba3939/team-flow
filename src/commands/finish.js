@@ -439,4 +439,7 @@ function displayCompletionSteps(pullRequest) {
   console.log(chalk.gray('\nお疲れさまでした！'));
 }
 
-module.exports = finishCommand;
+module.exports = {
+  execute: finishCommand,
+  finishCommand
+};

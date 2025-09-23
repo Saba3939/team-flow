@@ -87,7 +87,7 @@ class GitHubService {
    * GitHub設定が有効かチェック
    */
   isConfigured() {
-    return process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN.length > 0;
+    return !!(process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN.length > 0);
   }
 
   /**
@@ -350,7 +350,7 @@ class GitHubService {
           throw new Error(`ブランチ '${head}' とベースブランチ '${base}' の間に差分がありません`);
         }
         if (error.message.includes('already exists')) {
-          throw new Error(`同じ内容のプルリクエストが既に存在します`);
+          throw new Error('同じ内容のプルリクエストが既に存在します');
         }
       }
 

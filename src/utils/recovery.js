@@ -226,7 +226,7 @@ class RecoveryManager {
   /**
    * オフラインモードに切り替え
    */
-  async switchToOfflineMode(error, context) {
+  async switchToOfflineMode(error, _context) {
     logger.info('オフラインモードに切り替えます');
 
     try {
@@ -254,7 +254,7 @@ class RecoveryManager {
   /**
    * バックアップから復元
    */
-  async restoreFromBackup(error, context) {
+  async restoreFromBackup(_error, context) {
     const { backupId } = context;
 
     if (!backupId) {
@@ -301,7 +301,7 @@ class RecoveryManager {
   /**
    * API制限時の待機と再試行
    */
-  async waitAndRetry(error, context) {
+  async waitAndRetry(error, _context) {
     // エラーメッセージから待機時間を抽出
     let waitTime = 60000; // デフォルト1分
 
@@ -353,7 +353,7 @@ class RecoveryManager {
   /**
    * 設定を復元
    */
-  async restoreConfiguration(error, context) {
+  async restoreConfiguration(_error, _context) {
     try {
       const defaultConfig = this.getDefaultConfiguration();
       const configPath = path.join(process.cwd(), '.team-flow', 'config.json');

@@ -23,12 +23,16 @@ async function startCommand() {
 
     if (!isClean) {
       console.log(chalk.yellow('⚠️  未コミットの変更があります'));
-      const shouldContinue = await confirm({
-        message: '未コミットの変更がありますが、続行しますか？',
-        default: false
+      const shouldStash = await confirm({
+        message: '変更をstashして続行しますか？',
+        default: true
       });
 
-      if (!shouldContinue) {
+      if (shouldStash) {
+        const stashSpinner = ora('変更をstash中...').start();
+        await git.stash();
+        stashSpinner.succeed('変更をstashしました');
+      } else {
         console.log(chalk.blue('ℹ️  作業をコミットしてから再度実行してください'));
         return;
       }
@@ -57,7 +61,9 @@ async function startCommand() {
 
   } catch (error) {
     logger.error('startコマンドでエラーが発生しました:', error);
-    console.log(chalk.red('❌ エラーが発生しました: ' + error.message));
+    const errorMessage = error.message || error.toString() || '不明なエラー';
+    console.log(chalk.red('❌ エラーが発生しました: ' + errorMessage));
+    throw error; // テストでエラーを検証できるように再スロー
   }
 }
 
@@ -65,7 +71,7 @@ async function startCommand() {
  * 作業種別を選択
  */
 async function selectWorkType() {
-  return await select({
+  const workType = await select({
     message: '作業種別を選択してください:',
     choices: [
       { name: '🆕 機能開発', value: 'feature' },
@@ -75,6 +81,14 @@ async function selectWorkType() {
       { name: '🔥 ホットフィックス', value: 'hotfix' }
     ]
   });
+
+  // バリデーション
+  const validTypes = ['feature', 'bugfix', 'docs', 'refactor', 'hotfix'];
+  if (!validTypes.includes(workType)) {
+    throw new Error('無効な選択です');
+  }
+
+  return workType;
 }
 
 /**
@@ -239,7 +253,8 @@ async function createNewIssue() {
  */
 function generateBranchName(workType, issueInfo) {
   const issuePrefix = issueInfo.number ? `issue-${issueInfo.number}-` : '';
-  const titleSlug = issueInfo.title
+  const title = issueInfo.title || 'work';
+  const titleSlug = title
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
@@ -409,4 +424,7 @@ function displayNextSteps(branchName) {
   console.log(chalk.gray(`現在のブランチ: ${branchName}`));
 }
 
-module.exports = startCommand;
+module.exports = {
+  execute: startCommand,
+  startCommand
+};

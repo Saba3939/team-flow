@@ -45,24 +45,23 @@ class ErrorHandler {
     const errorInfo = this.analyzeError(error, context);
 
     switch (errorInfo.severity) {
-      case 'critical':
-        return this.handleCriticalError(errorInfo.type, error, context);
-      case 'recoverable':
-        return this.handleRecoverableError(errorInfo.type, error, context);
-      case 'warning':
-        return this.handleWarningError(errorInfo.type, error, context);
-      default:
-        return this.handleUnknownError(error, context);
+    case 'critical':
+      return this.handleCriticalError(errorInfo.type, error, context);
+    case 'recoverable':
+      return this.handleRecoverableError(errorInfo.type, error, context);
+    case 'warning':
+      return this.handleWarningError(errorInfo.type, error, context);
+    default:
+      return this.handleUnknownError(error, context);
     }
   }
 
   /**
    * エラーを分析して分類
    */
-  analyzeError(error, context) {
+  analyzeError(error, _context) {
     const message = error.message || error.toString();
     const code = error.code || error.errno;
-    const stack = error.stack;
 
     // Critical Errors（即座に停止）
     if (this.isCriticalError(error, message, code)) {
@@ -143,7 +142,7 @@ class ErrorHandler {
   /**
    * Warning Errorかどうかを判定
    */
-  isWarningError(error, message, code) {
+  isWarningError(error, message, _code) {
     const warningPatterns = [
       /optional.*feature/i,
       /configuration.*missing/i,
@@ -306,8 +305,8 @@ class ErrorHandler {
   getCriticalErrorType(error, message, code) {
     if (/repository.*corrupt/i.test(message)) return 'GIT_REPOSITORY_CORRUPTION';
     if (/permission denied/i.test(message) || code === 'EACCES') return 'PERMISSION_DENIED';
-    if (/enospc|no space left/i.test(message)) return 'DISK_SPACE_FULL';
-    if (/enomem|out of memory/i.test(message)) return 'OUT_OF_MEMORY';
+    if (/enospc|no space left/i.test(message) || code === 'ENOSPC') return 'DISK_SPACE_FULL';
+    if (/enomem|out of memory/i.test(message) || code === 'ENOMEM') return 'OUT_OF_MEMORY';
     if (/authentication.*failed/i.test(message)) return 'AUTHENTICATION_FAILED';
     return 'UNKNOWN_CRITICAL';
   }
@@ -315,7 +314,7 @@ class ErrorHandler {
   /**
    * Critical Error用の復旧提案
    */
-  suggestCriticalRecovery(type, error) {
+  suggestCriticalRecovery(type, _error) {
     const suggestions = {
       'GIT_REPOSITORY_CORRUPTION': {
         suggestion: 'Gitリポジトリが破損しています。\n' +
@@ -325,7 +324,7 @@ class ErrorHandler {
       },
       'PERMISSION_DENIED': {
         suggestion: 'ファイルアクセス権限が不足しています。\n' +
-                   '1. ファイル権限を確認してください\n' +
+                   '1. ファイル権限を確認してください (chmod)\n' +
                    '2. 管理者権限で実行してください',
         canRecover: false
       },
@@ -364,7 +363,7 @@ class ErrorHandler {
   /**
    * Recoverable Error用の復旧提案
    */
-  suggestRecoverableRecovery(type, error) {
+  suggestRecoverableRecovery(type, _error) {
     const suggestions = {
       'NETWORK_TIMEOUT': {
         suggestion: 'ネットワークタイムアウトが発生しました。再試行します。'
@@ -391,7 +390,7 @@ class ErrorHandler {
   /**
    * Warning Error用のタイプを取得
    */
-  getWarningErrorType(error, message, code) {
+  getWarningErrorType(_error, message, _code) {
     if (/optional.*feature/i.test(message)) return 'OPTIONAL_FEATURE_UNAVAILABLE';
     if (/configuration.*missing/i.test(message)) return 'CONFIGURATION_MISSING';
     if (/performance.*warning/i.test(message)) return 'PERFORMANCE_WARNING';

@@ -46,7 +46,7 @@ program
   .command('start')
   .description('新しい作業を開始')
   .action(async () => {
-    const startCommand = require('./commands/start');
+    const { startCommand } = require('./commands/start');
     await startCommand();
   });
 
@@ -62,7 +62,7 @@ program
   .command('finish')
   .description('作業を完了')
   .action(async () => {
-    const finishCommand = require('./commands/finish');
+    const { finishCommand } = require('./commands/finish');
     await finishCommand();
   });
 

@@ -27,8 +27,9 @@ async function continueCommand() {
     workStatus.displayStatus();
 
     // 3. 推奨アクションがある場合は実行確認
-    if (status.recommendations.length > 0) {
-      await handleRecommendations(status.recommendations);
+    const recommendations = status.recommendations || [];
+    if (recommendations.length > 0) {
+      await handleRecommendations(recommendations);
     } else {
       console.log(chalk.green('\n✨ 現在の状況は良好です！作業を続けてください。\n'));
       displayContinueOptions();
@@ -39,7 +40,8 @@ async function continueCommand() {
 
   } catch (error) {
     logger.error('continueコマンドでエラーが発生しました:', error);
-    console.log(chalk.red('❌ エラーが発生しました: ' + error.message));
+    const errorMessage = error.message || error.toString() || '不明なエラー';
+    console.log(chalk.red('❌ エラーが発生しました: ' + errorMessage));
   }
 }
 
@@ -483,4 +485,7 @@ function extractIssueNumber(branchName) {
   return match ? parseInt(match[1]) : null;
 }
 
-module.exports = continueCommand;
+module.exports = {
+  execute: continueCommand,
+  continueCommand
+};

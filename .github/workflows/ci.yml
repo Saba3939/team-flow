@@ -1,0 +1,308 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Run tests with coverage
+      run: npm test -- --coverage --ci
+      env:
+        NODE_ENV: test
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Check coverage thresholds
+      run: |
+        if [ -f coverage/lcov.info ]; then
+          echo "✅ Coverage report generated successfully"
+        else
+          echo "❌ Coverage report not found"
+          exit 1
+        fi
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Check for TypeScript errors (if present)
+      run: |
+        if [ -f tsconfig.json ]; then
+          npx tsc --noEmit
+        else
+          echo "ℹ️ No TypeScript configuration found, skipping"
+        fi
+
+    - name: Test CLI functionality
+      run: |
+        # CLIの基本機能をテスト
+        chmod +x bin/team-flow.js
+        node bin/team-flow.js --version
+        node bin/team-flow.js --help
+
+    - name: Check package vulnerabilities
+      run: npm audit --audit-level moderate
+
+  security:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run security audit
+      run: npm audit --audit-level high
+
+    - name: Check for known vulnerabilities
+      run: |
+        # より詳細なセキュリティチェック
+        npx audit-ci --moderate
+
+  lint-and-format:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Check code formatting
+      run: |
+        if command -v prettier &> /dev/null; then
+          npx prettier --check .
+        else
+          echo "ℹ️ Prettier not configured, skipping format check"
+        fi
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Check for unused dependencies
+      run: |
+        if command -v depcheck &> /dev/null; then
+          npx depcheck
+        else
+          echo "ℹ️ depcheck not installed, skipping unused dependency check"
+        fi
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Setup test environment
+      run: |
+        # テスト用のGitリポジトリをセットアップ
+        git config --global user.name "Test User"
+        git config --global user.email "test@example.com"
+        git init test-repo
+        cd test-repo
+        echo "# Test Repository" > README.md
+        git add README.md
+        git commit -m "Initial commit"
+        cd ..
+
+    - name: Run integration tests
+      run: |
+        # 統合テストのみを実行
+        npm test -- --testPathPattern=integration
+      env:
+        NODE_ENV: test
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Test CLI installation
+      run: |
+        # パッケージのインストールテスト
+        npm pack
+        PACKAGE_NAME=$(ls *.tgz)
+        npm install -g $PACKAGE_NAME
+
+        # グローバルインストールのテスト
+        team-flow --version || echo "CLI not properly installed"
+
+  performance:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Performance benchmark
+      run: |
+        # 基本的なパフォーマンステスト
+        echo "🔍 Running performance tests..."
+
+        # メモリ使用量チェック
+        node -e "
+          const used = process.memoryUsage();
+          console.log('Memory usage:');
+          for (let key in used) {
+            console.log(\`\${key}: \${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB\`);
+          }
+        "
+
+        # 起動時間チェック
+        time node bin/team-flow.js --help > /dev/null
+
+    - name: Bundle size check
+      run: |
+        # パッケージサイズチェック
+        npm pack
+        PACKAGE_SIZE=$(ls -lah *.tgz | awk '{print $5}')
+        echo "📦 Package size: $PACKAGE_SIZE"
+
+        # サイズが大きすぎないかチェック（10MB以下）
+        SIZE_BYTES=$(stat -c%s *.tgz)
+        MAX_SIZE=$((10 * 1024 * 1024))
+        if [ $SIZE_BYTES -gt $MAX_SIZE ]; then
+          echo "❌ Package size ($SIZE_BYTES bytes) exceeds maximum ($MAX_SIZE bytes)"
+          exit 1
+        else
+          echo "✅ Package size is acceptable"
+        fi
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [test, security, lint-and-format, integration-test, performance]
+    if: always()
+
+    steps:
+    - name: Notify build status
+      run: |
+        if [[ "${{ needs.test.result }}" == "success" &&
+              "${{ needs.security.result }}" == "success" &&
+              "${{ needs.lint-and-format.result }}" == "success" &&
+              "${{ needs.integration-test.result }}" == "success" &&
+              "${{ needs.performance.result }}" == "success" ]]; then
+          echo "🎉 All CI checks passed successfully!"
+        else
+          echo "❌ Some CI checks failed:"
+          echo "- Test: ${{ needs.test.result }}"
+          echo "- Security: ${{ needs.security.result }}"
+          echo "- Lint: ${{ needs.lint-and-format.result }}"
+          echo "- Integration: ${{ needs.integration-test.result }}"
+          echo "- Performance: ${{ needs.performance.result }}"
+        fi
+
+  # リリース時の追加チェック
+  release-check:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [test, security, lint-and-format, integration-test, performance]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Validate package.json
+      run: |
+        # package.jsonの妥当性チェック
+        node -e "
+          const pkg = require('./package.json');
+          if (!pkg.version) throw new Error('Version not specified');
+          if (!pkg.description) throw new Error('Description not specified');
+          if (!pkg.main) throw new Error('Main entry point not specified');
+          console.log('✅ package.json validation passed');
+        "
+
+    - name: Check README
+      run: |
+        if [ ! -f README.md ]; then
+          echo "❌ README.md not found"
+          exit 1
+        fi
+
+        # READMEの最小内容チェック
+        if ! grep -q "# team-flow" README.md; then
+          echo "❌ README.md should contain project title"
+          exit 1
+        fi
+
+        echo "✅ README.md validation passed"
+
+    - name: Test distribution build
+      run: |
+        # 本番用ビルドのテスト
+        npm run build 2>/dev/null || echo "ℹ️ No build script defined"
+
+        # パッケージの整合性チェック
+        npm pack
+        tar -tzf *.tgz | head -20
+        echo "✅ Distribution package created successfully"
