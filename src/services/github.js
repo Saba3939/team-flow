@@ -1,5 +1,7 @@
 const { Octokit } = require('@octokit/rest');
 const logger = require('../utils/logger');
+const AuthManager = require('../utils/auth');
+const RateLimitManager = require('../utils/rateLimit');
 
 /**
  * GitHub API連携サービス
@@ -10,6 +12,8 @@ class GitHubService {
     this.owner = null;
     this.repo = null;
     this.initialized = false;
+    this.authManager = new AuthManager();
+    this.rateLimitManager = new RateLimitManager();
   }
 
   /**
@@ -17,39 +21,89 @@ class GitHubService {
    */
   async initialize() {
     if (this.initialized) {
-      return;
+      return { success: true, message: '既に初期化済みです' };
     }
 
     const token = process.env.GITHUB_TOKEN;
     if (!token) {
-      logger.warn('GITHUB_TOKEN が設定されていません');
-      return;
+      const message = 'GITHUB_TOKEN が設定されていません';
+      logger.warn(message);
+      return {
+        success: false,
+        error: 'missing_token',
+        message: message + '\n.envファイルにGITHUB_TOKENを設定してください。'
+      };
     }
 
     this.octokit = new Octokit({
       auth: token
     });
 
+    // 認証確認
+    const authResult = await this.authManager.validateGitHubToken(this.octokit);
+    if (!authResult.valid) {
+      return {
+        success: false,
+        error: authResult.error,
+        message: authResult.message
+      };
+    }
+
     // リポジトリ情報を取得
     try {
       const repoInfo = await this.getRepositoryInfo();
       this.owner = repoInfo.owner;
       this.repo = repoInfo.repo;
+
+      // リポジトリ権限確認
+      const permissions = await this.authManager.checkRepositoryPermissions(
+        this.octokit,
+        this.owner,
+        this.repo
+      );
+
       this.initialized = true;
       logger.info(`GitHub API initialized: ${this.owner}/${this.repo}`);
+      logger.info(`権限: Issues=${permissions.canCreateIssues}, PRs=${permissions.canCreatePRs}, Push=${permissions.canPush}`);
+
+      return {
+        success: true,
+        user: authResult.user,
+        repository: permissions.repository,
+        permissions: permissions.permissions,
+        rateLimit: authResult.rateLimit
+      };
     } catch (error) {
       logger.error('GitHub API の初期化に失敗しました:', error);
+      return {
+        success: false,
+        error: 'initialization_failed',
+        message: `GitHub API の初期化に失敗しました: ${error.message}`
+      };
     }
   }
 
   /**
    * GitHub設定が有効かチェック
    */
-  /**
-   * GitHub設定が有効かチェック
-   */
   isConfigured() {
     return process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN.length > 0;
+  }
+
+  /**
+   * 認証状態と権限を確認
+   */
+  async checkAuthStatus() {
+    const authStatus = this.authManager.getAuthStatus();
+    const rateLimitStatus = this.rateLimitManager.getRateLimitStatus();
+
+    return {
+      authenticated: authStatus.authenticated,
+      user: authStatus.user,
+      rateLimit: authStatus.rateLimit,
+      rateLimitStatus: rateLimitStatus,
+      repository: this.owner && this.repo ? `${this.owner}/${this.repo}` : null
+    };
   }
 
   /**
@@ -79,20 +133,25 @@ class GitHubService {
    * オープンなIssueを取得
    */
   async getOpenIssues(limit = 20) {
-    await this.initialize();
+    const initResult = await this.initialize();
+    if (!initResult.success) {
+      throw new Error(initResult.message);
+    }
 
     if (!this.initialized) {
       throw new Error('GitHub API が初期化されていません');
     }
 
     try {
-      const response = await this.octokit.rest.issues.listForRepo({
-        owner: this.owner,
-        repo: this.repo,
-        state: 'open',
-        per_page: limit,
-        sort: 'updated',
-        direction: 'desc'
+      const response = await this.rateLimitManager.executeWithRateLimit(async () => {
+        return await this.octokit.rest.issues.listForRepo({
+          owner: this.owner,
+          repo: this.repo,
+          state: 'open',
+          per_page: limit,
+          sort: 'updated',
+          direction: 'desc'
+        });
       });
 
       return response.data.map(issue => ({
@@ -115,20 +174,31 @@ class GitHubService {
    * 新しいIssueを作成
    */
   async createIssue(title, body = '', labels = [], assignees = []) {
-    await this.initialize();
+    const initResult = await this.initialize();
+    if (!initResult.success) {
+      throw new Error(initResult.message);
+    }
 
     if (!this.initialized) {
       throw new Error('GitHub API が初期化されていません');
     }
 
+    // 権限チェック
+    const authStatus = await this.checkAuthStatus();
+    if (!authStatus.authenticated) {
+      throw new Error('GitHub API の認証が必要です');
+    }
+
     try {
-      const response = await this.octokit.rest.issues.create({
-        owner: this.owner,
-        repo: this.repo,
-        title,
-        body,
-        labels,
-        assignees
+      const response = await this.rateLimitManager.executeWithRateLimit(async () => {
+        return await this.octokit.rest.issues.create({
+          owner: this.owner,
+          repo: this.repo,
+          title,
+          body,
+          labels,
+          assignees
+        });
       });
 
       const issue = response.data;
@@ -144,7 +214,7 @@ class GitHubService {
       };
     } catch (error) {
       logger.error('Issue作成エラー:', error);
-      
+
       // 権限エラーの場合、より具体的なメッセージを表示
       if (error.message && error.message.includes('Resource not accessible by personal access token')) {
         throw new Error(
@@ -156,7 +226,7 @@ class GitHubService {
           '詳細: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens'
         );
       }
-      
+
       throw new Error('Issueの作成に失敗しました: ' + error.message);
     }
   }
@@ -230,21 +300,33 @@ class GitHubService {
   /**
    * プルリクエストを作成
    */
-  async createPullRequest(title, body, head, base = 'main') {
-    await this.initialize();
+  async createPullRequest(title, body, head, base = 'main', isDraft = false) {
+    const initResult = await this.initialize();
+    if (!initResult.success) {
+      throw new Error(initResult.message);
+    }
 
     if (!this.initialized) {
       throw new Error('GitHub API が初期化されていません');
     }
 
+    // 権限チェック
+    const authStatus = await this.checkAuthStatus();
+    if (!authStatus.authenticated) {
+      throw new Error('GitHub API の認証が必要です');
+    }
+
     try {
-      const response = await this.octokit.rest.pulls.create({
-        owner: this.owner,
-        repo: this.repo,
-        title,
-        body,
-        head,
-        base
+      const response = await this.rateLimitManager.executeWithRateLimit(async () => {
+        return await this.octokit.rest.pulls.create({
+          owner: this.owner,
+          repo: this.repo,
+          title,
+          body,
+          head,
+          base,
+          draft: isDraft
+        });
       });
 
       const pr = response.data;
@@ -261,6 +343,17 @@ class GitHubService {
       };
     } catch (error) {
       logger.error('PR作成エラー:', error);
+
+      // 一般的なエラーに対する具体的なメッセージ
+      if (error.status === 422) {
+        if (error.message.includes('No commits')) {
+          throw new Error(`ブランチ '${head}' とベースブランチ '${base}' の間に差分がありません`);
+        }
+        if (error.message.includes('already exists')) {
+          throw new Error(`同じ内容のプルリクエストが既に存在します`);
+        }
+      }
+
       throw new Error('プルリクエストの作成に失敗しました: ' + error.message);
     }
   }
@@ -307,22 +400,35 @@ class GitHubService {
    * レビュアーを提案
    */
   async suggestReviewers(excludeUsers = []) {
-    await this.initialize();
+    const initResult = await this.initialize();
+    if (!initResult.success) {
+      logger.warn('レビュアー提案: GitHub API が初期化されていません');
+      return [];
+    }
 
     if (!this.initialized) {
-      throw new Error('GitHub API が初期化されていません');
+      logger.warn('レビュアー提案: GitHub API が初期化されていません');
+      return [];
     }
 
     try {
       // 最近のコミット履歴からアクティブなコントリビューターを取得
-      const response = await this.octokit.rest.repos.listContributors({
-        owner: this.owner,
-        repo: this.repo,
-        per_page: 10
+      const response = await this.rateLimitManager.executeWithRateLimit(async () => {
+        return await this.octokit.rest.repos.listContributors({
+          owner: this.owner,
+          repo: this.repo,
+          per_page: 10
+        });
       });
 
+      const currentUser = this.authManager.getAuthStatus().user;
+      const currentUserLogin = currentUser ? currentUser.login : null;
+
       return response.data
-        .filter(contributor => !excludeUsers.includes(contributor.login))
+        .filter(contributor =>
+          !excludeUsers.includes(contributor.login) &&
+          contributor.login !== currentUserLogin // 自分自身を除外
+        )
         .slice(0, 3)
         .map(contributor => ({
           login: contributor.login,
