@@ -389,24 +389,11 @@ function generatePRBody(description, implementation, testing, changedFiles, bran
   // 入力された変更内容を追加
   if (description && description.trim()) {
     body += description + '\n\n';
-  }
-  
-  // 変更ファイル一覧を常に表示
-  body += '**変更ファイル:**\n';
-  if (changedFiles && changedFiles.length > 0) {
-    changedFiles.forEach(file => {
-      body += `- ${file}\n`;
-    });
   } else {
-    body += '- 変更ファイルなし\n';
-  }
-  
-  // 未入力時の表示を修正
-  if (!description || !description.trim()) {
-    body += '\n※ 変更内容の詳細は上記変更ファイルをご確認ください\n';
+    body += '未入力\n\n';
   }
 
-  body += '\n## 実装方法（How）\n';
+  body += '## 実装方法（How）\n';
   body += (implementation && implementation.trim()) ? implementation : '未入力';
 
   body += '\n\n## 影響範囲・動作確認内容\n';
