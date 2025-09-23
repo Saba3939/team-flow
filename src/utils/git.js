@@ -74,6 +74,17 @@ class GitHelper {
     }
   }
 
+  // PRメッセージ用：ファイルパスのみを配列で返す
+  async getChangedFilesPaths() {
+    try {
+      const files = await this.getChangedFiles();
+      return files.map(file => file.path);
+    } catch (error) {
+      logger.error('変更ファイルパス取得エラー:', error);
+      return [];
+    }
+  }
+
   // 変更があるかチェック
   async hasChanges() {
     try {

@@ -331,8 +331,11 @@ async function createPullRequest() {
  */
 async function getPullRequestInfo() {
   const currentBranch = await git.getCurrentBranch();
-
-  // デフォルトタイトル生成
+  
+  // 変更されたファイル一覧を取得
+  const changedFiles = await git.getChangedFilesPaths();
+  
+  // デフォルトタイトル生成（必須）
   const defaultTitle = currentBranch
     .replace(/^(feat|fix|docs|refactor|hotfix)\//, '')
     .replace(/issue-\d+-/, '')
@@ -340,13 +343,25 @@ async function getPullRequestInfo() {
     .replace(/\b\w/g, l => l.toUpperCase());
 
   const title = await input({
-    message: 'PR タイトル:',
+    message: 'PR タイトル（必須）:',
     default: defaultTitle,
     validate: (input) => input.length > 0 || 'タイトルは必須です'
   });
 
+  // 任意項目の入力
   const description = await input({
-    message: 'PR 説明（任意）:'
+    message: '変更内容（What）- 任意:',
+    default: ''
+  });
+
+  const implementation = await input({
+    message: '実装方法（How）- 任意:',
+    default: ''
+  });
+
+  const testing = await input({
+    message: '影響範囲・動作確認内容 - 任意:',
+    default: ''
   });
 
   // ベースブランチ選択
@@ -360,7 +375,7 @@ async function getPullRequestInfo() {
   });
 
   // PR本文テンプレート生成
-  const body = generatePRBody(description, currentBranch);
+  const body = generatePRBody(description, implementation, testing, changedFiles, currentBranch);
 
   return { title, body, base };
 }
@@ -368,16 +383,37 @@ async function getPullRequestInfo() {
 /**
  * PR本文テンプレートを生成
  */
-function generatePRBody(description, branchName) {
-  let body = '## 概要\n';
-  body += description || '変更内容の説明をここに記載してください。\n';
-  body += '\n## 変更点\n';
-  body += '- \n';
-  body += '\n## テスト\n';
-  body += '- [ ] 単体テスト実行\n';
-  body += '- [ ] 手動テスト実行\n';
-  body += '\n## 関連Issue\n';
+function generatePRBody(description, implementation, testing, changedFiles, branchName) {
+  let body = '## 変更内容（What）\n';
+  
+  // 入力された変更内容を追加
+  if (description && description.trim()) {
+    body += description + '\n\n';
+  }
+  
+  // 変更ファイル一覧を常に表示
+  body += '**変更ファイル:**\n';
+  if (changedFiles && changedFiles.length > 0) {
+    changedFiles.forEach(file => {
+      body += `- ${file}\n`;
+    });
+  } else {
+    body += '- 変更ファイルなし\n';
+  }
+  
+  // 未入力時の表示を修正
+  if (!description || !description.trim()) {
+    body += '\n※ 変更内容の詳細は上記変更ファイルをご確認ください\n';
+  }
 
+  body += '\n## 実装方法（How）\n';
+  body += (implementation && implementation.trim()) ? implementation : '未入力';
+
+  body += '\n\n## 影響範囲・動作確認内容\n';
+  body += (testing && testing.trim()) ? testing : '未入力';
+
+  body += '\n\n## 関連Issue\n';
+  
   // ブランチ名からIssue番号を抽出
   const issueMatch = branchName.match(/issue-(\d+)-/);
   if (issueMatch) {
