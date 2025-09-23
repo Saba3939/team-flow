@@ -1,0 +1,27 @@
+# テストファイル
+tests/
+*.test.js
+coverage/
+
+# 開発設定ファイル
+.env
+.env.example
+.eslintrc.js
+jest.config.js
+
+# エディタ設定
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ログファイル
+logs/
+*.log
+npm-debug.log*
+
+# その他開発関連
+.DS_Store
+Thumbs.db
+.nyc_output
+.coverage
