@@ -38,6 +38,7 @@ class MockGit {
     this.getCurrentBranch = jest.fn().mockResolvedValue(this.mockState.currentBranch);
     this.getBranches = jest.fn().mockResolvedValue(this.mockState.branches);
     this.getLocalBranches = jest.fn().mockResolvedValue(this.mockState.branches);
+    this.getRemoteBranches = jest.fn().mockResolvedValue(['origin/main', 'origin/develop']); // リモートブランチ
     this.hasLocalBranch = jest.fn().mockImplementation((branchName) => {
       return Promise.resolve(this.mockState.branches.includes(branchName));
     });
@@ -62,6 +63,16 @@ class MockGit {
 
     // 書き込み操作
     this.checkoutBranch = jest.fn().mockImplementation((branch) => {
+      if (this.mockState.branches.includes(branch)) {
+        this.mockState.currentBranch = branch;
+        this.mockState.status.current = branch;
+        return Promise.resolve();
+      } else {
+        return Promise.reject(new Error(`Branch '${branch}' not found`));
+      }
+    });
+
+    this.switchBranch = jest.fn().mockImplementation((branch) => {
       if (this.mockState.branches.includes(branch)) {
         this.mockState.currentBranch = branch;
         this.mockState.status.current = branch;

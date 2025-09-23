@@ -68,13 +68,6 @@ describe('Start Command Integration', () => {
       inquirer.input
         .mockResolvedValueOnce('新しいダッシュボード機能'); // 作業内容
 
-      inquirer.checkbox
-        .mockResolvedValueOnce(['enhancement']); // ラベル選択
-
-      inquirer.confirm
-        .mockResolvedValueOnce(true) // ブランチ作成確認
-        .mockResolvedValueOnce(true); // Issue作成確認
-
       // Gitの状態をセットアップ
       mockGit.setCurrentBranch('main');
       mockGit.mockFileChanges([], [], []); // クリーンな状態
@@ -87,12 +80,51 @@ describe('Start Command Integration', () => {
         expect.stringMatching(/^feature\//)
       );
 
-      // GitHubでIssueが作成されたことを確認
+      // Issue作成は呼ばれないことを確認（'none'を選択したため）
+      expect(mockGitHub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    test('新しいIssue作成での開発フローが実行される', async () => {
+      const inquirer = require('@inquirer/prompts');
+
+      // ユーザー入力をモック
+      inquirer.select
+        .mockResolvedValueOnce('feature') // 作業種別: 新機能開発
+        .mockResolvedValueOnce('create'); // Issue操作: 新しいIssue作成
+
+      inquirer.input
+        .mockResolvedValueOnce('新しいダッシュボード機能') // Issueタイトル
+        .mockResolvedValueOnce('ユーザー用のダッシュボード機能を実装します'); // Issue内容
+
+      // Gitの状態をセットアップ
+      mockGit.setCurrentBranch('main');
+      mockGit.mockFileChanges([], [], []); // クリーンな状態
+
+      // GitHub APIモックを設定
+      mockGitHub.rest.issues.create.mockResolvedValueOnce({
+        data: {
+          number: 123,
+          title: '新しいダッシュボード機能',
+          body: 'ユーザー用のダッシュボード機能を実装します',
+          labels: [],
+          assignees: [],
+          html_url: 'https://github.com/test-user/test-repo/issues/123'
+        }
+      });
+
+      // startCommandを実行
+      await startCommand();
+
+      // 適切なGit操作が実行されたことを確認
+      expect(mockGit.createAndSwitchBranch).toHaveBeenCalledWith(
+        expect.stringMatching(/^feature\/issue-123-/)
+      );
+
+      // GitHub APIでIssueが作成されたことを確認
       expect(mockGitHub.rest.issues.create).toHaveBeenCalledWith(
         expect.objectContaining({
           title: '新しいダッシュボード機能',
-          body: expect.stringContaining('ユーザー用のダッシュボード機能'),
-          labels: ['enhancement']
+          body: 'ユーザー用のダッシュボード機能を実装します'
         })
       );
     });
@@ -100,23 +132,34 @@ describe('Start Command Integration', () => {
     test('既存Issueを使用した開発フローが実行される', async () => {
       const inquirer = require('@inquirer/prompts');
 
-      // 既存Issueのセットアップ
-      mockGitHub.setMockData('issues', [
-        {
-          number: 1,
-          title: '既存Issue: バグ修正',
-          body: '重要なバグを修正する必要があります',
-          labels: [{ name: 'bug' }],
-          assignees: [],
-          state: 'open'
-        }
-      ]);
+      // GitHub Mock の getOpenIssues をセットアップ
+      mockGitHub.rest.issues.listForRepo.mockResolvedValueOnce({
+        data: [
+          {
+            number: 1,
+            title: '既存Issue: バグ修正',
+            body: '重要なバグを修正する必要があります',
+            labels: [{ name: 'bug' }],
+            assignees: [],
+            state: 'open',
+            html_url: 'https://github.com/test-user/test-repo/issues/1'
+          }
+        ]
+      });
 
       // ユーザー入力をモック
       inquirer.select
         .mockResolvedValueOnce('bugfix') // 作業種別: バグ修正
         .mockResolvedValueOnce('select') // Issue操作: 既存Issueから選択
-        .mockResolvedValueOnce(1); // Issue選択
+        .mockResolvedValueOnce({        // Issue選択
+          number: 1,
+          title: '既存Issue: バグ修正',
+          body: '重要なバグを修正する必要があります',
+          labels: [{ name: 'bug' }],
+          assignees: [],
+          state: 'open',
+          html_url: 'https://github.com/test-user/test-repo/issues/1'
+        });
 
       inquirer.confirm
         .mockResolvedValueOnce(true); // ブランチ作成確認
@@ -125,7 +168,7 @@ describe('Start Command Integration', () => {
       await startCommand();
 
       // 適切なブランチ名でブランチが作成されたことを確認
-      expect(mockGit.createBranch).toHaveBeenCalledWith(
+      expect(mockGit.createAndSwitchBranch).toHaveBeenCalledWith(
         expect.stringMatching(/^bugfix\/issue-1/)
       );
 
@@ -139,13 +182,18 @@ describe('Start Command Integration', () => {
       const inquirer = require('@inquirer/prompts');
 
       // 未コミットの変更がある状態
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(false);
       mockGit.mockFileChanges(['modified-file.js'], [], ['new-file.js']);
 
-      inquirer.select.mockResolvedValueOnce('feature');
+      inquirer.select
+        .mockResolvedValueOnce('feature') // 作業種別
+        .mockResolvedValueOnce('none'); // Issue選択: なし
+      inquirer.input
+        .mockResolvedValueOnce('テスト機能'); // 作業内容
       inquirer.confirm
         .mockResolvedValueOnce(true); // stash確認
 
-      await startCommand.execute();
+      await startCommand();
 
       // stashが実行されることを確認
       expect(mockGit.stash).toHaveBeenCalled();
@@ -154,35 +202,40 @@ describe('Start Command Integration', () => {
     test('ブランチ作成失敗時の処理', async () => {
       const inquirer = require('@inquirer/prompts');
 
-      // ブランチ作成でエラーが発生
-      mockGit.createBranch.mockRejectedValueOnce(new Error('Branch already exists'));
+      // Git状態をクリーンに設定
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(true);
 
-      inquirer.select.mockResolvedValueOnce('feature');
+      // ブランチ作成でエラーが発生
+      mockGit.createAndSwitchBranch.mockRejectedValueOnce(new Error('Branch already exists'));
+
+      inquirer.select
+        .mockResolvedValueOnce('feature') // 作業種別
+        .mockResolvedValueOnce('none'); // Issue選択: なし
       inquirer.input
-        .mockResolvedValueOnce('テスト機能')
-        .mockResolvedValueOnce('テスト');
-      inquirer.confirm.mockResolvedValueOnce(true);
+        .mockResolvedValueOnce('テスト機能'); // 作業内容
 
       // エラーが適切に処理されることを確認
-      await expect(startCommand.execute()).rejects.toThrow('Branch already exists');
+      await expect(startCommand()).rejects.toThrow('Branch already exists');
     });
 
     test('GitHub API エラー時の処理', async () => {
       const inquirer = require('@inquirer/prompts');
 
+      // Git状態をクリーンに設定
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(true);
+
       // Issue作成でAPIエラー
       mockGitHub.mockApiError('issues.create', 403, 'Forbidden');
 
-      inquirer.select.mockResolvedValueOnce('feature');
+      inquirer.select
+        .mockResolvedValueOnce('feature') // 作業種別
+        .mockResolvedValueOnce('create'); // Issue選択: 作成
       inquirer.input
-        .mockResolvedValueOnce('テスト機能')
-        .mockResolvedValueOnce('テスト');
-      inquirer.confirm
-        .mockResolvedValueOnce(true) // ブランチ作成
-        .mockResolvedValueOnce(true); // Issue作成
+        .mockResolvedValueOnce('テスト機能') // Issue タイトル
+        .mockResolvedValueOnce('テスト'); // Issue 詳細
 
       // エラーが適切に処理されることを確認
-      await expect(startCommand.execute()).rejects.toThrow('Forbidden');
+      await expect(startCommand()).rejects.toThrow('Forbidden');
     });
   });
 
@@ -190,17 +243,18 @@ describe('Start Command Integration', () => {
     test('機能開発のブランチ名が正しく生成される', async () => {
       const inquirer = require('@inquirer/prompts');
 
-      inquirer.select.mockResolvedValueOnce('feature');
+      // Git状態をクリーンに設定
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(true);
+
+      inquirer.select
+        .mockResolvedValueOnce('feature') // 作業種別
+        .mockResolvedValueOnce('none'); // Issue選択: なし
       inquirer.input
-        .mockResolvedValueOnce('新しいログイン機能')
-        .mockResolvedValueOnce('詳細');
-      inquirer.confirm
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false); // Issue作成しない
+        .mockResolvedValueOnce('新しいログイン機能'); // 作業内容
 
-      await startCommand.execute();
+      await startCommand();
 
-      expect(mockGit.createBranch).toHaveBeenCalledWith(
+      expect(mockGit.createAndSwitchBranch).toHaveBeenCalledWith(
         expect.stringMatching(/^feature\//)
       );
     });
@@ -208,17 +262,18 @@ describe('Start Command Integration', () => {
     test('バグ修正のブランチ名が正しく生成される', async () => {
       const inquirer = require('@inquirer/prompts');
 
-      inquirer.select.mockResolvedValueOnce('bugfix');
+      // Git状態をクリーンに設定
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(true);
+
+      inquirer.select
+        .mockResolvedValueOnce('bugfix') // 作業種別
+        .mockResolvedValueOnce('none'); // Issue選択: なし
       inquirer.input
-        .mockResolvedValueOnce('ログインバグ修正')
-        .mockResolvedValueOnce('詳細');
-      inquirer.confirm
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false);
+        .mockResolvedValueOnce('ログインバグ修正'); // 作業内容
 
-      await startCommand.execute();
+      await startCommand();
 
-      expect(mockGit.createBranch).toHaveBeenCalledWith(
+      expect(mockGit.createAndSwitchBranch).toHaveBeenCalledWith(
         expect.stringMatching(/^bugfix\//)
       );
     });
@@ -226,17 +281,18 @@ describe('Start Command Integration', () => {
     test('ホットフィックスのブランチ名が正しく生成される', async () => {
       const inquirer = require('@inquirer/prompts');
 
-      inquirer.select.mockResolvedValueOnce('hotfix');
+      // Git状態をクリーンに設定
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(true);
+
+      inquirer.select
+        .mockResolvedValueOnce('hotfix') // 作業種別
+        .mockResolvedValueOnce('none'); // Issue選択: なし
       inquirer.input
-        .mockResolvedValueOnce('緊急セキュリティ修正')
-        .mockResolvedValueOnce('詳細');
-      inquirer.confirm
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false);
+        .mockResolvedValueOnce('緊急セキュリティ修正'); // 作業内容
 
-      await startCommand.execute();
+      await startCommand();
 
-      expect(mockGit.createBranch).toHaveBeenCalledWith(
+      expect(mockGit.createAndSwitchBranch).toHaveBeenCalledWith(
         expect.stringMatching(/^hotfix\//)
       );
     });
@@ -252,15 +308,16 @@ describe('Start Command Integration', () => {
 
       const inquirer = require('@inquirer/prompts');
 
-      inquirer.select.mockResolvedValueOnce('feature');
-      inquirer.input
-        .mockResolvedValueOnce('新機能')
-        .mockResolvedValueOnce('詳細');
-      inquirer.confirm
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true);
+      // Git状態をクリーンに設定
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(true);
 
-      await startCommand.execute();
+      inquirer.select
+        .mockResolvedValueOnce('feature') // 作業種別
+        .mockResolvedValueOnce('none'); // Issue選択: なし
+      inquirer.input
+        .mockResolvedValueOnce('新機能'); // 作業内容
+
+      await startCommand();
 
       // 通知が送信されたことを確認（実装されている場合）
       if (notificationService && notificationService.notifyWorkStart) {
@@ -276,18 +333,19 @@ describe('Start Command Integration', () => {
 
       const inquirer = require('@inquirer/prompts');
 
-      inquirer.select.mockResolvedValueOnce('feature');
-      inquirer.input
-        .mockResolvedValueOnce('設定テスト')
-        .mockResolvedValueOnce('詳細');
-      inquirer.confirm
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false);
+      // Git状態をクリーンに設定
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(true);
 
-      await startCommand.execute();
+      inquirer.select
+        .mockResolvedValueOnce('feature') // 作業種別
+        .mockResolvedValueOnce('none'); // Issue選択: なし
+      inquirer.input
+        .mockResolvedValueOnce('設定テスト'); // 作業内容
+
+      await startCommand();
 
       // 設定に基づいて適切な処理が実行されることを確認
-      expect(mockGit.createBranch).toHaveBeenCalled();
+      expect(mockGit.createAndSwitchBranch).toHaveBeenCalled();
     });
   });
 
@@ -295,24 +353,27 @@ describe('Start Command Integration', () => {
     test('同名ブランチ存在時の処理', async () => {
       const inquirer = require('@inquirer/prompts');
 
+      // Git状態をクリーンに設定
+      mockGit.isWorkingDirectoryClean.mockResolvedValueOnce(true);
+
       // 既存ブランチを設定
       mockGit.setState({
         branches: ['main', 'feature/existing-feature']
       });
 
       // ブランチ作成時に競合エラー
-      mockGit.createBranch.mockRejectedValueOnce(
+      mockGit.createAndSwitchBranch.mockRejectedValueOnce(
         new Error("A branch named 'feature/existing-feature' already exists")
       );
 
-      inquirer.select.mockResolvedValueOnce('feature');
+      inquirer.select
+        .mockResolvedValueOnce('feature') // 作業種別
+        .mockResolvedValueOnce('none'); // Issue選択: なし
       inquirer.input
-        .mockResolvedValueOnce('existing feature') // 既存と同名
-        .mockResolvedValueOnce('詳細');
-      inquirer.confirm.mockResolvedValueOnce(true);
+        .mockResolvedValueOnce('existing feature'); // 作業内容（既存と同名）
 
       // エラーが適切に処理されることを確認
-      await expect(startCommand.execute()).rejects.toThrow('already exists');
+      await expect(startCommand()).rejects.toThrow('already exists');
     });
   });
 });

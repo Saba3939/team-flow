@@ -295,8 +295,18 @@ class TestSetup {
    * テスト後のクリーンアップ
    */
   async cleanup() {
-    // 作業ディレクトリを復元
-    this.restoreWorkingDirectory();
+    try {
+      // 必ず元の作業ディレクトリに戻る
+      this.restoreWorkingDirectory();
+    } catch (error) {
+      // 元のディレクトリが削除されている場合に備えて、プロジェクトルートに戻る
+      try {
+        process.chdir(this.originalCwd);
+      } catch (cwdError) {
+        // 最後の手段として、まだ存在するディレクトリに移動
+        process.chdir('/');
+      }
+    }
 
     // 環境変数を復元
     this.restoreEnvironment();
@@ -304,13 +314,19 @@ class TestSetup {
     // コンソールを復元
     this.restoreConsole();
 
-    // テストディレクトリを削除
+    // テストディレクトリを削除（遅延削除で他のテストとの競合を避ける）
     if (this.testDir && await fs.pathExists(this.testDir)) {
-      try {
-        await fs.remove(this.testDir);
-      } catch (error) {
-        console.warn(`テストディレクトリの削除に失敗: ${error.message}`);
-      }
+      // 少し待ってから削除を試行
+      setTimeout(async () => {
+        try {
+          if (await fs.pathExists(this.testDir)) {
+            await fs.remove(this.testDir);
+          }
+        } catch (error) {
+          // 削除失敗は警告のみ（テストの実行は継続）
+          console.warn(`テストディレクトリの削除に失敗: ${error.message}`);
+        }
+      }, 100);
     }
 
     // モックをクリア

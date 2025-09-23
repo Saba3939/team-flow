@@ -52,8 +52,8 @@ module.exports = {
   // 詳細出力
   verbose: true,
 
-  // 並列実行の制御
-  maxWorkers: '50%',
+  // 並列実行の制御（作業ディレクトリ競合を避けるため順次実行）
+  maxWorkers: 1,
 
   // モジュール名マッピング
   moduleNameMapper: {

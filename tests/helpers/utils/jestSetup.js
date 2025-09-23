@@ -5,6 +5,39 @@
 // 全テストで共通のタイムアウト設定
 jest.setTimeout(10000);
 
+// 元の作業ディレクトリを保存
+const originalCwd = process.cwd();
+
+// 各テスト後に作業ディレクトリを確実に戻す
+afterEach(() => {
+  try {
+    // 作業ディレクトリが存在する場合のみ戻す
+    if (originalCwd && require('fs').existsSync(originalCwd)) {
+      process.chdir(originalCwd);
+    }
+  } catch (error) {
+    // 元のディレクトリに戻れない場合は、プロジェクトルートを探す
+    try {
+      const path = require('path');
+      let current = process.cwd();
+      while (current !== '/' && current !== path.dirname(current)) {
+        if (require('fs').existsSync(path.join(current, 'package.json'))) {
+          process.chdir(current);
+          break;
+        }
+        current = path.dirname(current);
+      }
+    } catch (fallbackError) {
+      // 最終手段として安全なディレクトリに移動
+      try {
+        process.chdir('/tmp');
+      } catch (finalError) {
+        console.warn('作業ディレクトリの復元に失敗しました');
+      }
+    }
+  }
+});
+
 // コンソール出力の抑制（必要に応じて）
 if (process.env.SUPPRESS_CONSOLE === 'true') {
   global.console = {
