@@ -11,7 +11,7 @@ npm install -g team-flow
 ## 初期設定
 
 ```bash
-# 初回セットアップ
+# 初回セットアップ(各プロジェクトディレクトリごとに行なってください)
 team-flow --setup
 
 # 設定確認
