@@ -302,8 +302,8 @@ class GitHelper {
 
       // 直接gitコマンドを実行（タイムアウト付き）
       const command = `git push origin ${currentBranch}`;
-      
-      const { stdout, stderr } = await execAsync(command, {
+
+      await execAsync(command, {
         timeout: 30000, // 30秒タイムアウト
         cwd: process.cwd()
       });
@@ -638,8 +638,8 @@ class GitHelper {
 
       // 直接gitコマンドを実行（タイムアウト付き）
       const command = `git push -u origin ${branchName}`;
-      
-      const { stdout, stderr } = await execAsync(command, {
+
+      await execAsync(command, {
         timeout: 30000, // 30秒タイムアウト
         cwd: process.cwd()
       });
