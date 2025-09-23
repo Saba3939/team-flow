@@ -63,7 +63,6 @@ class GitHubService {
       );
 
       this.initialized = true;
-      logger.info(`GitHub API initialized: ${this.owner}/${this.repo}`);
 
       // 権限に問題がある場合のみ警告
       if (!permissions.canCreateIssues || !permissions.canCreatePRs) {
