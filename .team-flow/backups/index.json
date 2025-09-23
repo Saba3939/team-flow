@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "backups": [
+    {
+      "id": "full-test-2025-09-23T01-40-18-910Z",
+      "type": "full",
+      "operation": "test",
+      "timestamp": "2025-09-23T01:40:18.910Z",
+      "metadata": {
+        "testMode": true
+      },
+      "files": [
+        {
+          "path": ".env",
+          "type": "file",
+          "size": 1657,
+          "mtime": "2025-09-22T09:01:09.265Z",
+          "checksum": "d074c51d04d68da186681d42204fc11c67d926d6c7779958481110fba245889b"
+        },
+        {
+          "path": "package.json",
+          "type": "file",
+          "size": 1021,
+          "mtime": "2025-09-22T02:03:19.086Z",
+          "checksum": "85f963b05012fef3c6cc1cd651e16966ab75a286ffe1be1614aa429b40842d98"
+        },
+        {
+          "path": "package-lock.json",
+          "type": "file",
+          "size": 212458,
+          "mtime": "2025-09-22T02:04:27.172Z",
+          "checksum": "3cd1d8708c473fa81508b4415dc23d6df70d96ef91954f338050352a78a39b42"
+        },
+        {
+          "path": ".gitignore",
+          "type": "file",
+          "size": 825,
+          "mtime": "2025-09-22T11:34:49.646Z",
+          "checksum": "c27ce19a4788632ef0f57acaf6d80257c73581ad6681f1a0830c1e36b11c1477"
+        },
+        {
+          "path": "git-info.json",
+          "type": "file",
+          "size": 2899,
+          "mtime": "2025-09-23T01:40:18.954Z",
+          "checksum": "edb2f5445a87bec65c841556e6c2ae16579860fac99b6d9ba6e72b4bd7857370"
+        }
+      ],
+      "size": 218860,
+      "checksum": "2634c8e0042bd2bb10ad0089dd06afdc3983a9e44a32620d98ccdec7ec6b2f77"
+    }
+  ],
+  "createdAt": "2025-09-23T01:40:18.910Z"
+}

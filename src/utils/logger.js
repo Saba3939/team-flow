@@ -106,13 +106,118 @@ class Logger {
   }
 
   // ログファイルの内容を取得
-  async getLogContent() {
+  async getLogContent(lines = 100) {
     try {
-      return await fs.readFile(this.logFile, 'utf8');
+      if (!(await fs.pathExists(this.logFile))) {
+        return '';
+      }
+
+      const content = await fs.readFile(this.logFile, 'utf8');
+      const logLines = content.split('\n').filter(line => line.trim());
+
+      // 最新のN行を返す
+      return logLines.slice(-lines).join('\n');
     } catch (error) {
-      this.warn('ログファイルが存在しません');
+      this.warn('ログファイルの読み取りに失敗');
       return '';
     }
+  }
+
+  // エラーログの内容を取得
+  async getErrorLogContent(lines = 50) {
+    try {
+      if (!(await fs.pathExists(this.errorLogFile))) {
+        return '';
+      }
+
+      const content = await fs.readFile(this.errorLogFile, 'utf8');
+      const logLines = content.split('\n').filter(line => line.trim());
+
+      return logLines.slice(-lines).join('\n');
+    } catch (error) {
+      return '';
+    }
+  }
+
+  // ログ統計を取得
+  async getLogStats() {
+    try {
+      const stats = {
+        mainLogSize: 0,
+        errorLogSize: 0,
+        totalFiles: 0,
+        oldestLog: null,
+        newestLog: null
+      };
+
+      if (await fs.pathExists(this.logFile)) {
+        const mainStats = await fs.stat(this.logFile);
+        stats.mainLogSize = mainStats.size;
+        stats.newestLog = mainStats.mtime;
+      }
+
+      if (await fs.pathExists(this.errorLogFile)) {
+        const errorStats = await fs.stat(this.errorLogFile);
+        stats.errorLogSize = errorStats.size;
+      }
+
+      const logFiles = await fs.readdir(this.logDir);
+      stats.totalFiles = logFiles.filter(f => f.endsWith('.log')).length;
+
+      // 最古のログファイルを検索
+      for (const file of logFiles) {
+        if (file.endsWith('.log')) {
+          const filePath = path.join(this.logDir, file);
+          const fileStats = await fs.stat(filePath);
+
+          if (!stats.oldestLog || fileStats.mtime < stats.oldestLog) {
+            stats.oldestLog = fileStats.mtime;
+          }
+        }
+      }
+
+      return stats;
+    } catch (error) {
+      return {
+        mainLogSize: 0,
+        errorLogSize: 0,
+        totalFiles: 0,
+        oldestLog: null,
+        newestLog: null
+      };
+    }
+  }
+
+  // セキュリティログ（機密情報をマスク）
+  securityLog(level, message, data = {}) {
+    // 機密情報をマスク
+    const maskedData = this._maskSensitiveData(data);
+    const maskedMessage = this._maskSensitiveMessage(message);
+
+    this[level](maskedMessage, maskedData);
+  }
+
+  // 機密情報をマスク
+  _maskSensitiveData(data) {
+    const sensitiveKeys = ['token', 'password', 'secret', 'key', 'auth', 'credential'];
+    const masked = { ...data };
+
+    for (const key in masked) {
+      if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
+        masked[key] = '***masked***';
+      }
+    }
+
+    return masked;
+  }
+
+  // メッセージ内の機密情報をマスク
+  _maskSensitiveMessage(message) {
+    // トークンパターンをマスク
+    return message
+      .replace(/token[:\s=]+[\w-]+/gi, 'token: ***masked***')
+      .replace(/password[:\s=]+\S+/gi, 'password: ***masked***')
+      .replace(/ghp_[\w]+/g, 'ghp_***masked***');
   }
 }
 

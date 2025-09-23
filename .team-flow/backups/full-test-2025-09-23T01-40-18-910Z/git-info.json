@@ -1,0 +1,101 @@
+{
+  "currentBranch": "feature/error-handling",
+  "status": {
+    "not_added": [
+      ".team-flow/backups/full-test-2025-09-23T01-40-18-910Z/files/.gitignore",
+      ".team-flow/backups/full-test-2025-09-23T01-40-18-910Z/files/package-lock.json",
+      ".team-flow/backups/full-test-2025-09-23T01-40-18-910Z/files/package.json",
+      ".team-flow/backups/index.json",
+      ".team-flow/backups/test-operation-2025-09-23T01-40-18-873Z/config/package.json",
+      ".team-flow/backups/test-operation-2025-09-23T01-40-18-873Z/git-state.json",
+      ".team-flow/backups/test-operation-2025-09-23T01-40-18-873Z/metadata.json",
+      "src/utils/backup.js",
+      "src/utils/errorHandler.js",
+      "src/utils/operationErrorHandler.js",
+      "src/utils/recovery.js",
+      "test-error-handling.js"
+    ],
+    "conflicted": [],
+    "created": [],
+    "deleted": [],
+    "modified": [
+      "src/utils/logger.js"
+    ],
+    "renamed": [],
+    "files": [
+      {
+        "path": "src/utils/logger.js",
+        "index": " ",
+        "working_dir": "M"
+      },
+      {
+        "path": ".team-flow/backups/full-test-2025-09-23T01-40-18-910Z/files/.gitignore",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": ".team-flow/backups/full-test-2025-09-23T01-40-18-910Z/files/package-lock.json",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": ".team-flow/backups/full-test-2025-09-23T01-40-18-910Z/files/package.json",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": ".team-flow/backups/index.json",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": ".team-flow/backups/test-operation-2025-09-23T01-40-18-873Z/config/package.json",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": ".team-flow/backups/test-operation-2025-09-23T01-40-18-873Z/git-state.json",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": ".team-flow/backups/test-operation-2025-09-23T01-40-18-873Z/metadata.json",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": "src/utils/backup.js",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": "src/utils/errorHandler.js",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": "src/utils/operationErrorHandler.js",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": "src/utils/recovery.js",
+        "index": "?",
+        "working_dir": "?"
+      },
+      {
+        "path": "test-error-handling.js",
+        "index": "?",
+        "working_dir": "?"
+      }
+    ],
+    "staged": [],
+    "ahead": 0,
+    "behind": 0,
+    "current": "feature/error-handling",
+    "tracking": null,
+    "detached": false
+  },
+  "remoteUrl": "git@github.com:Saba3939/team-flow.git",
+  "lastCommit": null
+}
