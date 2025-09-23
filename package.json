@@ -1,6 +1,6 @@
 {
   "name": "team-flow",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Git/GitHub初心者でも使いやすい対話型ガイド機能とワークフロー簡素化機能を組み合わせた統合チーム開発CLIツール",
   "main": "src/index.js",
   "bin": {
