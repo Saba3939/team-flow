@@ -298,28 +298,21 @@ class GitHelper {
     
     try {
       const currentBranch = branch || await this.getCurrentBranch();
-      console.log(`[DEBUG] 直接gitコマンドでプッシュ開始: ブランチ ${currentBranch}`);
-      
       spinner = ora(`変更をリモートにプッシュ実行中... (${currentBranch}) - 直接実行`).start();
-      
+
       // 直接gitコマンドを実行（タイムアウト付き）
       const command = `git push origin ${currentBranch}`;
-      console.log(`[DEBUG] 実行コマンド: ${command}`);
-      
-      const { stdout, stderr } = await execAsync(command, {
+
+      await execAsync(command, {
         timeout: 30000, // 30秒タイムアウト
         cwd: process.cwd()
       });
       
-      console.log('[DEBUG] gitコマンド完了');
-      console.log(`[DEBUG] stdout: ${stdout}`);
-      if (stderr) console.log(`[DEBUG] stderr: ${stderr}`);
       
       spinner.stop();
       logger.success(`プッシュしました: ${currentBranch}`);
       return true;
     } catch (error) {
-      console.log(`[DEBUG] 直接gitコマンドでエラー: ${error.message}`);
       if (spinner) spinner.stop();
       
       let errorMessage = '直接gitコマンドでプッシュに失敗';
@@ -641,28 +634,21 @@ class GitHelper {
     let spinner;
     
     try {
-      console.log(`[DEBUG] 直接gitコマンドでpushSetUpstream開始: ブランチ ${branchName}`);
-      
       spinner = ora(`リモートブランチを作成してプッシュ実行中... (${branchName}) - 直接実行`).start();
-      
+
       // 直接gitコマンドを実行（タイムアウト付き）
       const command = `git push -u origin ${branchName}`;
-      console.log(`[DEBUG] 実行コマンド: ${command}`);
-      
-      const { stdout, stderr } = await execAsync(command, {
+
+      await execAsync(command, {
         timeout: 30000, // 30秒タイムアウト
         cwd: process.cwd()
       });
       
-      console.log('[DEBUG] pushSetUpstream gitコマンド完了');
-      console.log(`[DEBUG] stdout: ${stdout}`);
-      if (stderr) console.log(`[DEBUG] stderr: ${stderr}`);
       
       spinner.stop();
       logger.success(`upstream設定でプッシュしました: ${branchName}`);
       return true;
     } catch (error) {
-      console.log(`[DEBUG] 直接gitコマンドでpushSetUpstreamエラー: ${error.message}`);
       if (spinner) spinner.stop();
       
       let errorMessage = '直接gitコマンドでupstream設定プッシュに失敗';

@@ -98,8 +98,8 @@ class RateLimitManager {
         logger.info(`レート制限により ${Math.ceil(waitTime / 1000)} 秒待機します...`);
         await this.sleep(waitTime);
       }
-    } else if (remaining < 10) {
-      // 残り少ない場合は少し待機
+    } else if (remaining < 5) {
+      // 残り5未満の場合のみ警告（従来の10から変更）
       logger.warn(`API制限残り: ${remaining}。少し待機します...`);
       await this.sleep(1000);
     }
@@ -149,8 +149,8 @@ class RateLimitManager {
         used: parseInt(limit) - parseInt(remaining)
       };
 
-      // 残り少ない場合は警告
-      if (this.rateLimit.remaining < 100) {
+      // 残り10未満の場合のみ警告（従来の100から変更）
+      if (this.rateLimit.remaining < 10) {
         const resetDate = new Date(this.rateLimit.reset * 1000);
         const minutesUntilReset = Math.ceil((resetDate - new Date()) / (1000 * 60));
         logger.warn(`API制限残り: ${this.rateLimit.remaining}/${this.rateLimit.limit} (${minutesUntilReset}分後にリセット)`);

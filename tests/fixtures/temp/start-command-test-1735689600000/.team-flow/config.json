@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "defaultBranch": "main",
+  "autoBackup": true,
+  "notifications": {
+    "slack": false,
+    "discord": false
+  }
+}

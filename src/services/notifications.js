@@ -20,18 +20,16 @@ class NotificationService {
       return;
     }
 
-    // Slack の初期化
+    // Slackの初期化（初期値の場合はスキップ）
     const slackToken = process.env.SLACK_TOKEN;
-    if (slackToken) {
+    if (slackToken && slackToken !== 'xoxb-your-slack-bot-token-here') {
       this.slackClient = new WebClient(slackToken);
-      logger.info('Slack通知サービスを初期化しました');
     }
 
-    // Discord の初期化
+    // Discordの初期化（初期値の場合はスキップ）
     const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
-    if (discordWebhookUrl) {
+    if (discordWebhookUrl && discordWebhookUrl !== 'https://discord.com/api/webhooks/your/webhook/url') {
       this.discordWebhook = new Webhook(discordWebhookUrl);
-      logger.info('Discord通知サービスを初期化しました');
     }
 
     this.initialized = true;
@@ -53,35 +51,57 @@ class NotificationService {
 
     const results = [];
 
-    // Slack に送信
+    // Slackに送信
     if (this.slackClient) {
       try {
         await this.sendToSlack(message, options);
         results.push({ platform: 'Slack', success: true });
       } catch (error) {
-        logger.error('Slack送信エラー:', error);
+        // 初期値でない場合のみエラーログを出力
+        if (process.env.SLACK_TOKEN !== 'xoxb-your-slack-bot-token-here') {
+          logger.error('Slack送信エラー:', error);
+        }
         results.push({ platform: 'Slack', success: false, error: error.message });
       }
     }
 
-    // Discord に送信
+    // Discordに送信
     if (this.discordWebhook) {
       try {
         await this.sendToDiscord(message, options);
         results.push({ platform: 'Discord', success: true });
       } catch (error) {
-        logger.error('Discord送信エラー:', error);
+        // 初期値でない場合のみエラーログを出力
+        if (process.env.DISCORD_WEBHOOK_URL !== 'https://discord.com/api/webhooks/your/webhook/url') {
+          logger.error('Discord送信エラー:', error);
+        }
         results.push({ platform: 'Discord', success: false, error: error.message });
       }
     }
 
     if (results.length === 0) {
-      throw new Error('通知サービスが設定されていません');
+      // 初期値でない場合のみエラーを投げる
+      const hasRealSlackToken = process.env.SLACK_TOKEN && process.env.SLACK_TOKEN !== 'xoxb-your-slack-bot-token-here';
+      const hasRealDiscordUrl = process.env.DISCORD_WEBHOOK_URL && process.env.DISCORD_WEBHOOK_URL !== 'https://discord.com/api/webhooks/your/webhook/url';
+      
+      if (hasRealSlackToken || hasRealDiscordUrl) {
+        throw new Error('通知サービスが設定されていません');
+      }
+      // 初期値のみの場合は静かに終了
+      return [];
     }
 
     const failures = results.filter(r => !r.success);
     if (failures.length === results.length) {
-      throw new Error('すべての通知サービスで送信に失敗しました');
+      // 初期値でない場合のみエラーを投げる
+      const hasRealTokens = (process.env.SLACK_TOKEN && process.env.SLACK_TOKEN !== 'xoxb-your-slack-bot-token-here') ||
+                           (process.env.DISCORD_WEBHOOK_URL && process.env.DISCORD_WEBHOOK_URL !== 'https://discord.com/api/webhooks/your/webhook/url');
+      
+      if (hasRealTokens) {
+        throw new Error('すべての通知サービスで送信に失敗しました');
+      }
+      // 初期値のみの場合は静かに終了
+      return [];
     }
 
     return results;
