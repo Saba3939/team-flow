@@ -64,7 +64,11 @@ class GitHubService {
 
       this.initialized = true;
       logger.info(`GitHub API initialized: ${this.owner}/${this.repo}`);
-      logger.info(`権限: Issues=${permissions.canCreateIssues}, PRs=${permissions.canCreatePRs}, Push=${permissions.canPush}`);
+
+      // 権限に問題がある場合のみ警告
+      if (!permissions.canCreateIssues || !permissions.canCreatePRs) {
+        logger.warn(`権限制限: Issues=${permissions.canCreateIssues}, PRs=${permissions.canCreatePRs}, Push=${permissions.canPush}`);
+      }
 
       return {
         success: true,

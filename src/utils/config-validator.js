@@ -57,38 +57,14 @@ class ConfigValidator {
     // GitHub設定
     console.log(chalk.white('🐙 GitHub:'));
     console.log(`   Token: ${debugInfo.github.hasToken ? chalk.green('✓ 設定済み') : chalk.red('✗ 未設定')}`);
-    console.log(`   デフォルトブランチ: ${chalk.blue(debugInfo.github.defaultBranch)}\n`);
 
-    // 通知設定
-    console.log(chalk.white('📢 通知サービス:'));
-    console.log(`   Slack: ${debugInfo.slack.hasToken ? chalk.green('✓ 設定済み') : chalk.gray('○ 未設定（オプション）')}`);
-    if (debugInfo.slack.hasToken) {
-      console.log(`   チャンネル: ${chalk.blue(debugInfo.slack.channel)}`);
-    }
-    console.log(`   Discord: ${debugInfo.discord.hasWebhook ? chalk.green('✓ 設定済み') : chalk.gray('○ 未設定（オプション）')}\n`);
-
-    // アプリケーション設定
-    console.log(chalk.white('⚙️  アプリケーション:'));
-    console.log(`   実行環境: ${chalk.blue(debugInfo.app.nodeEnv)}`);
-    console.log(`   デバッグモード: ${debugInfo.app.debug ? chalk.green('ON') : chalk.gray('OFF')}`);
-    console.log(`   ログレベル: ${chalk.blue(debugInfo.app.logLevel)}\n`);
-
-    // Git設定
-    console.log(chalk.white('🌿 Git:'));
-    console.log(`   自動プッシュ: ${debugInfo.git.autoPush ? chalk.yellow('ON') : chalk.gray('OFF')}`);
-    console.log(`   自動PR作成: ${debugInfo.git.autoPR ? chalk.yellow('ON') : chalk.gray('OFF')}\n`);
-
-    // セキュリティ設定
-    console.log(chalk.white('🔒 セキュリティ:'));
-    console.log(`   破壊的操作の確認: ${debugInfo.security.confirmDestructiveActions ? chalk.green('ON') : chalk.red('OFF')}\n`);
-
-    // 有効な通知サービスの報告
+    // 通知サービスの概要のみ
     const notificationCount = Object.keys(notifications).length;
     if (notificationCount > 0) {
-      console.log(chalk.green(`✅ ${notificationCount}つの通知サービスが利用可能です`));
-    } else {
-      console.log(chalk.gray('ℹ️  通知サービスは設定されていません（オプション）'));
+      console.log(`   通知: ${chalk.green(`✓ ${notificationCount}サービス利用可能`)}`);
     }
+
+    console.log();
   }
 
   /**

@@ -20,18 +20,16 @@ class NotificationService {
       return;
     }
 
-    // Slack の初期化
+    // Slackの初期化
     const slackToken = process.env.SLACK_TOKEN;
     if (slackToken) {
       this.slackClient = new WebClient(slackToken);
-      logger.info('Slack通知サービスを初期化しました');
     }
 
-    // Discord の初期化
+    // Discordの初期化
     const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
     if (discordWebhookUrl) {
       this.discordWebhook = new Webhook(discordWebhookUrl);
-      logger.info('Discord通知サービスを初期化しました');
     }
 
     this.initialized = true;
