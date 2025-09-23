@@ -49,23 +49,47 @@ class GitHelper {
   async getChangedFiles() {
     try {
       const status = await this.git.status();
+      const currentBranch = await this.getCurrentBranch();
       
-      const files = [];
+      let files = [];
       
-      // 変更されたファイル
+      // 現在のワーキングディレクトリの変更ファイル
       status.modified.forEach(file => files.push({ path: file, status: 'M' }));
-      
-      // 追加されたファイル  
       status.created.forEach(file => files.push({ path: file, status: 'A' }));
-      
-      // 削除されたファイル
       status.deleted.forEach(file => files.push({ path: file, status: 'D' }));
-      
-      // 名前変更されたファイル
       status.renamed.forEach(file => files.push({ path: file.to, status: 'R' }));
-      
-      // 未追跡ファイル
       status.not_added.forEach(file => files.push({ path: file, status: '??' }));
+      
+      // コミット済み変更ファイル（ブランチ間差分）
+      if (currentBranch !== 'main' && currentBranch !== 'master') {
+        try {
+          // mainブランチとの差分を取得
+          let baseBranch = 'main';
+          try {
+            await this.git.raw(['rev-parse', '--verify', 'origin/main']);
+          } catch {
+            try {
+              await this.git.raw(['rev-parse', '--verify', 'origin/master']);
+              baseBranch = 'master';
+            } catch {
+              // どちらも存在しない場合はHEAD~1との差分
+              baseBranch = 'HEAD~1';
+            }
+          }
+          
+          const diffResult = await this.git.diff([`origin/${baseBranch}...HEAD`, '--name-status']);
+          const diffLines = diffResult.split('\n').filter(line => line.trim());
+          
+          diffLines.forEach(line => {
+            const [status, filePath] = line.split('\t');
+            if (filePath && !files.some(f => f.path === filePath)) {
+              files.push({ path: filePath, status: status });
+            }
+          });
+        } catch (diffError) {
+          logger.warn('ブランチ間差分取得エラー:', diffError.message);
+        }
+      }
       
       return files;
     } catch (error) {
