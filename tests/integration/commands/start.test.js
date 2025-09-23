@@ -330,6 +330,7 @@ describe('Start Command Integration', () => {
     test('team-flow設定が適切に読み込まれる', async () => {
       // カスタム設定でテスト
       await testSetup.createFixtures();
+      testSetup.changeToTestDirectory();
 
       const inquirer = require('@inquirer/prompts');
 
