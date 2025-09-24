@@ -34,38 +34,46 @@ class Config {
    * 設定を読み込み
    */
   loadConfig() {
+    // グローバル設定を読み込み
+    const globalConfig = this.getGlobalConfig();
+    
+    // 環境変数を優先し、なければグローバル設定、それもなければデフォルト値を使用
+    const getConfigValue = (envKey, globalKey = envKey, defaultValue = undefined) => {
+      return process.env[envKey] || globalConfig[globalKey] || defaultValue;
+    };
+
     // 必須設定
     this.config.github = {
-      token: process.env.GITHUB_TOKEN
+      token: getConfigValue('GITHUB_TOKEN')
     };
 
     // 通知設定（オプション）
     this.config.slack = {
-      token: process.env.SLACK_TOKEN,
-      channel: process.env.SLACK_CHANNEL || '#general'
+      token: getConfigValue('SLACK_TOKEN'),
+      channel: getConfigValue('SLACK_CHANNEL', 'SLACK_CHANNEL', '#general')
     };
 
     this.config.discord = {
-      webhookUrl: process.env.DISCORD_WEBHOOK_URL
+      webhookUrl: getConfigValue('DISCORD_WEBHOOK_URL')
     };
 
     // アプリケーション設定
     this.config.app = {
-      nodeEnv: process.env.NODE_ENV || 'development',
-      debug: process.env.DEBUG === 'true' || false,
-      logLevel: process.env.LOG_LEVEL || 'info'
+      nodeEnv: getConfigValue('NODE_ENV', 'NODE_ENV', 'development'),
+      debug: getConfigValue('DEBUG') === 'true' || false,
+      logLevel: getConfigValue('LOG_LEVEL', 'LOG_LEVEL', 'info')
     };
 
     // Git設定
     this.config.git = {
-      defaultBranch: process.env.DEFAULT_BRANCH || 'main',
-      autoPush: process.env.AUTO_PUSH === 'true' || false,
-      autoPR: process.env.AUTO_PR === 'true' || false
+      defaultBranch: getConfigValue('DEFAULT_BRANCH', 'DEFAULT_BRANCH', 'main'),
+      autoPush: getConfigValue('AUTO_PUSH') === 'true' || false,
+      autoPR: getConfigValue('AUTO_PR') === 'true' || false
     };
 
     // セキュリティ設定
     this.config.security = {
-      confirmDestructiveActions: process.env.CONFIRM_DESTRUCTIVE_ACTIONS !== 'false'
+      confirmDestructiveActions: getConfigValue('CONFIRM_DESTRUCTIVE_ACTIONS') !== 'false'
     };
   }
 
