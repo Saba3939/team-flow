@@ -1,7 +1,6 @@
 const simpleGit = require('simple-git');
 const logger = require('./logger');
-const Config = require('../config');
-const config = new Config();
+const config = require('../config');
 
 class GitHelper {
   constructor() {

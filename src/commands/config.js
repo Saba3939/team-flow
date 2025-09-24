@@ -1,12 +1,11 @@
 const { input, select, confirm } = require('@inquirer/prompts');
 const chalk = require('chalk');
-const Config = require('../config');
 
 /**
  * グローバル設定コマンド
  */
 async function configCommand(options = {}) {
-  const config = new Config();
+  const config = require('../config');
 
   try {
     if (options.global) {
