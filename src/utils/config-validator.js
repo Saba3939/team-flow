@@ -1,5 +1,6 @@
 const chalk = require('chalk');
-const config = require('../config');
+const Config = require('../config');
+const config = new Config();
 
 /**
  * 設定検証ユーティリティ

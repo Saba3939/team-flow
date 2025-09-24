@@ -226,6 +226,92 @@ class Config {
       security: this.config.security
     };
   }
+
+  /**
+   * グローバル設定ファイルを作成・更新
+   * @param {Object} config - 設定オブジェクト
+   */
+  saveGlobalConfig(config) {
+    const os = require('os');
+    const globalConfigDir = path.join(os.homedir(), '.team-flow');
+    const globalConfigPath = path.join(globalConfigDir, 'config.json');
+    
+    // ディレクトリが存在しない場合は作成
+    if (!fs.existsSync(globalConfigDir)) {
+      fs.mkdirSync(globalConfigDir, { recursive: true });
+    }
+    
+    // 既存の設定を読み込み
+    let existingConfig = {};
+    if (fs.existsSync(globalConfigPath)) {
+      try {
+        const content = fs.readFileSync(globalConfigPath, 'utf8');
+        existingConfig = JSON.parse(content);
+      } catch (error) {
+        console.warn(`Warning: Failed to read existing global config: ${error.message}`);
+      }
+    }
+    
+    // 新しい設定をマージ
+    const mergedConfig = { ...existingConfig, ...config };
+    
+    // 設定を保存
+    try {
+      fs.writeFileSync(globalConfigPath, JSON.stringify(mergedConfig, null, 2));
+      return globalConfigPath;
+    } catch (error) {
+      throw new Error(`Failed to save global config: ${error.message}`);
+    }
+  }
+
+  /**
+   * グローバル設定ファイルを取得
+   * @returns {Object} グローバル設定
+   */
+  getGlobalConfig() {
+    const os = require('os');
+    const globalConfigPath = path.join(os.homedir(), '.team-flow', 'config.json');
+    
+    if (!fs.existsSync(globalConfigPath)) {
+      return {};
+    }
+    
+    try {
+      const content = fs.readFileSync(globalConfigPath, 'utf8');
+      return JSON.parse(content);
+    } catch (error) {
+      console.warn(`Warning: Failed to read global config: ${error.message}`);
+      return {};
+    }
+  }
+
+  /**
+   * グローバル設定のセットアップガイドを表示
+   */
+  showGlobalSetupGuide() {
+    const os = require('os');
+    const globalConfigPath = path.join(os.homedir(), '.team-flow', 'config.json');
+    
+    console.log(chalk.yellow('\n🔧 team-flow グローバル設定ガイド\n'));
+    
+    console.log(chalk.cyan('グローバル設定を使用すると、全プロジェクトで共通の設定を使用できます。'));
+    console.log(chalk.cyan('設定ファイルの場所:'));
+    console.log(`   ${globalConfigPath}\n`);
+    
+    console.log(chalk.cyan('設定例:'));
+    console.log(JSON.stringify({
+      GITHUB_TOKEN: 'your_github_token_here',
+      SLACK_TOKEN: 'xoxb-your-slack-token',
+      SLACK_CHANNEL: '#general',
+      DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/...',
+      DEFAULT_BRANCH: 'main',
+      AUTO_PUSH: 'false',
+      AUTO_PR: 'false'
+    }, null, 2));
+    
+    console.log(chalk.yellow('\n注意: ローカルの.envファイルがある場合は、そちらが優先されます。'));
+    console.log(chalk.red('⚠️  重要: 設定ファイルには機密情報が含まれるため、適切に保護してください！'));
+  }
 }
 
-module.exports = new Config();
+module.exports = Config;

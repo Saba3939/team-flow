@@ -82,6 +82,17 @@ program
     await helpFlowCommand();
   });
 
+program
+  .command('config')
+  .description('設定管理')
+  .option('-g, --global', 'グローバル設定を作成・編集')
+  .option('-c, --check', '設定確認')
+  .option('-s, --show', '設定内容表示')
+  .action(async (options) => {
+    const { configCommand } = require('./commands/config');
+    await configCommand(options);
+  });
+
 // 設定関連のコマンド処理（Commanderより先に処理）
 if (process.argv.includes('--check-config')) {
   ConfigValidator.validateAndReport();
@@ -116,9 +127,12 @@ if (process.argv.length === 2) {
   console.log(chalk.green('  team-flow --help        ') + '- 詳細なヘルプを表示\n');
 
   console.log('設定コマンド:');
-  console.log(chalk.blue('  team-flow --check-config') + '- 設定を確認');
-  console.log(chalk.blue('  team-flow --setup       ') + '- 初回セットアップを実行');
-  console.log(chalk.blue('  team-flow --fix-config  ') + '- 設定の自動修復を試行\n');
+  console.log(chalk.blue('  team-flow config         ') + '- 設定管理');
+  console.log(chalk.blue('  team-flow config --global') + '- グローバル設定を作成');
+  console.log(chalk.blue('  team-flow config --check ') + '- 設定確認');
+  console.log(chalk.blue('  team-flow --check-config ') + '- 設定を確認 (旧形式)');
+  console.log(chalk.blue('  team-flow --setup        ') + '- 初回セットアップを実行');
+  console.log(chalk.blue('  team-flow --fix-config   ') + '- 設定の自動修復を試行\n');
   process.exit(0);
 }
 

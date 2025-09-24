@@ -1,7 +1,8 @@
 const chalk = require('chalk');
 const fs = require('fs-extra');
 const path = require('path');
-const config = require('../config');
+const Config = require('../config');
+const config = new Config();
 
 class Logger {
   constructor() {
