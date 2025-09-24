@@ -252,19 +252,19 @@ async function showConfigMenu(config) {
   });
 
   switch (choice) {
-    case 'global':
-      await setupGlobalConfig(config);
-      break;
-    case 'check':
-      await checkConfig(config);
-      break;
-    case 'show':
-      await showCurrentConfig(config);
-      break;
-    case 'guide':
-      config.showSetupGuide();
-      config.showGlobalSetupGuide();
-      break;
+  case 'global':
+    await setupGlobalConfig(config);
+    break;
+  case 'check':
+    await checkConfig(config);
+    break;
+  case 'show':
+    await showCurrentConfig(config);
+    break;
+  case 'guide':
+    config.showSetupGuide();
+    config.showGlobalSetupGuide();
+    break;
   }
 }
 
