@@ -80,9 +80,6 @@ DISCORD_WEBHOOK_URL=your_discord_webhook_url
 - Git 2.0以上
 - GitHub アカウント
 
-## ライセンス
-
-MIT
 
 ## 詳細ドキュメント
 
